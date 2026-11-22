@@ -1,0 +1,720 @@
+/*
+ * Bộ sinh câu hỏi Toán TIMO cho tiểu học (lớp 1–6).
+ * Mỗi câu hỏi được sinh ngẫu nhiên theo tham số, đáp án được tính bằng máy
+ * (nhiều dạng dùng duyệt vét cạn) để đảm bảo luôn đúng.
+ *
+ * Câu hỏi trả về dạng:
+ *   { topic, text, answer, options[], explain, svg? }
+ */
+(function (root) {
+  'use strict';
+
+  // ---------- Tiện ích ----------
+  const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+  const lcm = (a, b) => (a / gcd(a, b)) * b;
+  const band = (g) => (g <= 2 ? 1 : g <= 4 ? 2 : 3);
+  const fmt = (n) => (Math.abs(n) >= 10000 ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : String(n));
+  const C2 = (n) => (n * (n - 1)) / 2;
+  function binom(n, k) {
+    let r = 1;
+    for (let i = 1; i <= k; i++) r = (r * (n - k + i)) / i;
+    return Math.round(r);
+  }
+
+  const NAMES = ['An', 'Bình', 'Chi', 'Dũng', 'Hà', 'Minh', 'Lan', 'Nam'];
+  const DAYS = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+
+  /** Tạo 4 phương án số (gồm đáp án + nhiễu hợp lý). */
+  function numOptions(ans, extras) {
+    const set = new Set([ans]);
+    for (const e of shuffle(extras || [])) {
+      if (set.size >= 4) break;
+      if (Number.isInteger(e) && e >= 0 && e !== ans) set.add(e);
+    }
+    const deltas = shuffle([1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 10, -10]);
+    let i = 0;
+    while (set.size < 4) {
+      const v = ans + deltas[i % deltas.length] * (1 + Math.floor(i / deltas.length));
+      if (v >= 0) set.add(v);
+      i++;
+    }
+    return shuffle([...set]);
+  }
+
+  /** Câu hỏi có đáp án là số. */
+  function numQ(topic, text, ans, extras, explain, svg) {
+    return {
+      topic,
+      text,
+      answer: fmt(ans),
+      options: numOptions(ans, extras).map(fmt),
+      explain,
+      svg: svg || null,
+    };
+  }
+
+  /** Câu hỏi có đáp án là chữ (tên, thứ...). */
+  function strQ(topic, text, ans, pool, explain, svg) {
+    const others = shuffle(pool.filter((p) => p !== ans)).slice(0, 3);
+    return { topic, text, answer: ans, options: shuffle([ans, ...others]), explain, svg: svg || null };
+  }
+
+  // ---------- Hình vẽ SVG ----------
+  const SVG_OPEN = (w, h) =>
+    `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="fig" role="img" xmlns="http://www.w3.org/2000/svg">`;
+
+  function svgGrid(rows, cols, opts = {}) {
+    const cell = Math.min(36, Math.floor(200 / Math.max(rows, cols)));
+    const pad = 18;
+    const w = cols * cell + pad * 2;
+    const h = rows * cell + pad * 2;
+    let s = SVG_OPEN(w, h);
+    for (let r = 0; r <= rows; r++)
+      s += `<line x1="${pad}" y1="${pad + r * cell}" x2="${pad + cols * cell}" y2="${pad + r * cell}" stroke="currentColor" stroke-width="2"/>`;
+    for (let c = 0; c <= cols; c++)
+      s += `<line x1="${pad + c * cell}" y1="${pad}" x2="${pad + c * cell}" y2="${pad + rows * cell}" stroke="currentColor" stroke-width="2"/>`;
+    if (opts.labels) {
+      s += `<circle cx="${pad}" cy="${pad + rows * cell}" r="5" fill="#e4572e"/><text x="${pad - 14}" y="${pad + rows * cell + 14}" font-size="14" fill="currentColor">A</text>`;
+      s += `<circle cx="${pad + cols * cell}" cy="${pad}" r="5" fill="#2e86de"/><text x="${pad + cols * cell + 4}" y="${pad - 4}" font-size="14" fill="currentColor">B</text>`;
+    }
+    return s + '</svg>';
+  }
+
+  function svgFan(n) {
+    // n đoạn thẳng xuất phát từ đỉnh xuống cạnh đáy (kể cả 2 cạnh bên)
+    const W = 240, H = 170, ax = W / 2, ay = 14, by = 150, x0 = 14, x1 = W - 14;
+    let s = SVG_OPEN(W, H);
+    s += `<line x1="${x0}" y1="${by}" x2="${x1}" y2="${by}" stroke="currentColor" stroke-width="2"/>`;
+    for (let i = 0; i < n; i++) {
+      const x = x0 + ((x1 - x0) * i) / (n - 1);
+      s += `<line x1="${ax}" y1="${ay}" x2="${x}" y2="${by}" stroke="currentColor" stroke-width="2"/>`;
+    }
+    return s + '</svg>';
+  }
+
+  // =====================================================================
+  // 1. TƯ DUY LOGIC
+  // =====================================================================
+  const logic = [];
+
+  // Quy luật dãy số
+  logic.push(function sequence(g) {
+    const b = band(g);
+    let terms, next, explain;
+    const kind = b === 1 ? 'arith' : b === 2 ? pick(['arith', 'second', 'geo']) : pick(['second', 'geo', 'fib', 'square']);
+    if (kind === 'arith') {
+      const d = b === 1 ? rand(2, 5) : rand(3, 12);
+      const down = b > 1 && Math.random() < 0.4;
+      const s = down ? rand(5 * d + 5, 5 * d + 60) : rand(1, 20);
+      terms = Array.from({ length: 5 }, (_, i) => s + (down ? -1 : 1) * d * i);
+      next = s + (down ? -1 : 1) * d * 5;
+      explain = `Mỗi số ${down ? 'kém' : 'hơn'} số liền trước ${d} đơn vị. Số tiếp theo là ${terms[4]} ${down ? '−' : '+'} ${d} = ${next}.`;
+    } else if (kind === 'second') {
+      const s = rand(1, 10), d0 = rand(1, 4), inc = rand(1, b === 3 ? 3 : 2);
+      terms = [s];
+      let d = d0;
+      for (let i = 1; i < 6; i++) { terms.push(terms[i - 1] + d); d += inc; }
+      next = terms.pop();
+      const diffs = terms.slice(1).map((t, i) => t - terms[i]);
+      explain = `Hiệu giữa các số liên tiếp là ${diffs.join(', ')} — mỗi hiệu tăng thêm ${inc}. Hiệu tiếp theo là ${diffs[3] + inc}, nên số cần tìm là ${terms[4]} + ${diffs[3] + inc} = ${next}.`;
+    } else if (kind === 'geo') {
+      const r = pick([2, 3]), s = rand(1, r === 2 ? 5 : 3);
+      terms = Array.from({ length: 5 }, (_, i) => s * r ** i);
+      next = s * r ** 5;
+      explain = `Mỗi số gấp ${r} lần số liền trước. Số tiếp theo là ${terms[4]} × ${r} = ${next}.`;
+    } else if (kind === 'fib') {
+      const a = rand(1, 5), c = rand(a, a + 5);
+      terms = [a, c];
+      while (terms.length < 6) terms.push(terms[terms.length - 1] + terms[terms.length - 2]);
+      next = terms.pop();
+      explain = `Từ số thứ ba, mỗi số bằng tổng hai số liền trước. Số tiếp theo là ${terms[3]} + ${terms[4]} = ${next}.`;
+    } else {
+      const k = rand(0, 5), st = rand(1, 3);
+      terms = Array.from({ length: 5 }, (_, i) => (st + i) ** 2 + k);
+      next = (st + 5) ** 2 + k;
+      explain = `Các số có dạng n × n + ${k}: ${terms.map((t, i) => `${st + i}×${st + i}+${k}`).join(', ')}. Số tiếp theo là ${st + 5}×${st + 5}+${k} = ${next}.`;
+    }
+    const d4 = terms[4] - terms[3];
+    return numQ('logic', `Tìm số tiếp theo của dãy: <b>${terms.join(', ')}, ...</b>`, next, [terms[4] + d4, next + 1, next - 2, terms[4] * 2], explain);
+  });
+
+  // Bài toán tuổi
+  logic.push(function ages(g) {
+    const b = band(g);
+    if (b === 1) {
+      const d = rand(2, 6), x = rand(3, 9);
+      return numQ('logic', `Anh hơn em ${d} tuổi. Khi em ${x} tuổi thì anh bao nhiêu tuổi?`, x + d, [x - d, d, x + d + 1],
+        `Hiệu số tuổi của hai anh em không thay đổi theo thời gian. Khi em ${x} tuổi thì anh ${x} + ${d} = ${x + d} tuổi.`);
+    }
+    for (;;) {
+      const x = rand(6, 15), k = rand(2, b === 3 ? 5 : 4), n = rand(1, 8);
+      const an = x - n, me = k * x - n, D = me - an;
+      if (an < 2 || D < 18 || D > 40) continue;
+      return numQ('logic',
+        `Năm nay An ${an} tuổi, mẹ ${me} tuổi. Hỏi sau bao nhiêu năm nữa thì tuổi mẹ gấp ${k} lần tuổi An?`,
+        n, [x, n + 1, D, k * n],
+        `Mẹ luôn hơn An ${me} − ${an} = ${D} tuổi. Khi tuổi mẹ gấp ${k} lần tuổi An thì hiệu số tuổi bằng ${k} − 1 = ${k - 1} lần tuổi An.<br>Lúc đó An ${D} : ${k - 1} = ${x} tuổi. Vậy sau ${x} − ${an} = <b>${n}</b> năm.`);
+    }
+  });
+
+  // Sắp xếp thứ tự (cao/thấp)
+  logic.push(function ordering(g) {
+    const b = band(g);
+    const count = b + 2;
+    const people = shuffle(NAMES).slice(0, count); // từ cao nhất đến thấp nhất
+    const facts = [];
+    for (let i = 0; i < count - 1; i++) {
+      facts.push(Math.random() < 0.5 ? `${people[i]} cao hơn ${people[i + 1]}` : `${people[i + 1]} thấp hơn ${people[i]}`);
+    }
+    const ask = b === 3 ? pick(['tall', 'short', 'second']) : pick(['tall', 'short']);
+    const qText = { tall: 'Ai cao nhất?', short: 'Ai thấp nhất?', second: 'Ai cao thứ nhì?' }[ask];
+    const ans = { tall: people[0], short: people[count - 1], second: people[1] }[ask];
+    const shown = shuffle(people);
+    return strQ('logic',
+      `Có ${count} bạn: ${shown.join(', ')}. Biết rằng:<ul>${shuffle(facts).map((f) => `<li>${f}</li>`).join('')}</ul>${qText}`,
+      ans, people,
+      `Sắp xếp từ cao đến thấp: <b>${people.join(' > ')}</b>. Vậy câu trả lời là ${ans}.`);
+  });
+
+  // Ngày trong tuần
+  logic.push(function weekday(g) {
+    const b = band(g);
+    const today = rand(0, 6);
+    const N = b === 1 ? rand(2, 12) : b === 2 ? rand(15, 100) : rand(100, 400);
+    const ans = DAYS[(today + N) % 7];
+    const q = Math.floor(N / 7), r = N % 7;
+    return strQ('logic', `Hôm nay là <b>${DAYS[today]}</b>. Hỏi ${N} ngày nữa là thứ mấy?`, ans, DAYS,
+      `Một tuần có 7 ngày nên cứ 7 ngày lại lặp lại thứ cũ. ${N} = 7 × ${q} + ${r}. Từ ${DAYS[today]} đếm thêm ${r} ngày được <b>${ans}</b>.`);
+  });
+
+  // Trồng cây, cưa gỗ, leo cầu thang
+  logic.push(function intervals(g) {
+    const b = band(g);
+    if (b === 1) {
+      const n = rand(3, 7), t = rand(2, 5);
+      return numQ('logic', `Một khúc gỗ được cưa thành ${n} đoạn. Mỗi lần cưa mất ${t} phút. Hỏi cưa xong mất bao nhiêu phút?`,
+        (n - 1) * t, [n * t, (n + 1) * t],
+        `Cưa thành ${n} đoạn chỉ cần ${n} − 1 = ${n - 1} lần cưa. Thời gian: ${n - 1} × ${t} = <b>${(n - 1) * t}</b> phút.`);
+    }
+    if (b === 2 || Math.random() < 0.4) {
+      const d = pick([2, 3, 4, 5, 10]), k = rand(6, 30), L = d * k;
+      return numQ('logic', `Người ta trồng cây ở một bên đường dài ${L} m, cứ cách ${d} m trồng một cây, cả hai đầu đường đều có cây. Hỏi trồng được bao nhiêu cây?`,
+        k + 1, [k, k - 1, k + 2],
+        `Đoạn đường được chia thành ${L} : ${d} = ${k} khoảng. Trồng cả hai đầu thì số cây nhiều hơn số khoảng 1: ${k} + 1 = <b>${k + 1}</b> cây.`);
+    }
+    const s = rand(3, 8), a = rand(3, 5), n = rand(6, 12);
+    return numQ('logic', `Đi bộ từ tầng 1 lên tầng ${a} mất ${s * (a - 1)} giây. Hỏi với tốc độ như vậy, đi từ tầng 1 lên tầng ${n} mất bao nhiêu giây?`,
+      s * (n - 1), [s * n, Math.round((s * (a - 1) * n) / a), s * (n - 2)],
+      `Từ tầng 1 lên tầng ${a} phải đi ${a - 1} lượt cầu thang, mỗi lượt mất ${s * (a - 1)} : ${a - 1} = ${s} giây. Lên tầng ${n} phải đi ${n - 1} lượt: ${n - 1} × ${s} = <b>${s * (n - 1)}</b> giây.`);
+  });
+
+  // =====================================================================
+  // 2. SỐ HỌC (ARITHMETIC)
+  // =====================================================================
+  const arith = [];
+
+  // Tính nhanh
+  arith.push(function quickCalc(g) {
+    const b = band(g);
+    if (g === 1) {
+      const a = rand(1, 9), c = rand(1, 9);
+      const nums = shuffle([a, 10 - a, c, 10 - c]);
+      return numQ('arith', `Tính nhanh: <b>${nums.join(' + ')}</b>`, 20, [19, 21, 18],
+        `Ghép các số có tổng bằng 10: (${a} + ${10 - a}) + (${c} + ${10 - c}) = 10 + 10 = <b>20</b>.`);
+    }
+    if (b === 1) {
+      const a = rand(11, 89), m = rand(5, 40);
+      return numQ('arith', `Tính nhanh: <b>${a} + ${m} + ${100 - a}</b>`, 100 + m, [90 + m, 110 + m, 100 + m + 1],
+        `(${a} + ${100 - a}) + ${m} = 100 + ${m} = <b>${100 + m}</b>.`);
+    }
+    if (b === 2) {
+      if (Math.random() < 0.5) {
+        const a = rand(12, 99), x = rand(11, 89);
+        return numQ('arith', `Tính nhanh: <b>${a} × ${x} + ${a} × ${100 - x}</b>`, a * 100, [a * 10, a * 100 + a, a * 99],
+          `Đưa thừa số chung ra ngoài: ${a} × (${x} + ${100 - x}) = ${a} × 100 = <b>${fmt(a * 100)}</b>.`);
+      }
+      const k = rand(7, 99);
+      return numQ('arith', `Tính nhanh: <b>25 × ${k} × 4</b>`, 100 * k, [10 * k, 100 * k + 25, 99 * k],
+        `Đổi chỗ các thừa số: (25 × 4) × ${k} = 100 × ${k} = <b>${fmt(100 * k)}</b>.`);
+    }
+    const s = rand(1, 20), d = rand(1, 5), n = rand(10, 40), last = s + d * (n - 1);
+    const sum = (n * (s + last)) / 2;
+    return numQ('arith', `Tính tổng: <b>${s} + ${s + d} + ${s + 2 * d} + ... + ${last}</b>`, sum, [sum - last, sum + s, n * last],
+      `Dãy có (${last} − ${s}) : ${d} + 1 = ${n} số hạng. Tổng = (số đầu + số cuối) × số số hạng : 2 = (${s} + ${last}) × ${n} : 2 = <b>${fmt(sum)}</b>.`);
+  });
+
+  // Tìm số chưa biết
+  arith.push(function findX(g) {
+    const b = band(g);
+    if (b === 1) {
+      const max = g === 1 ? 20 : 100;
+      const x = rand(1, max - 5), a = rand(1, max - x);
+      if (Math.random() < 0.5)
+        return numQ('arith', `Tìm số thích hợp điền vào ô trống: <b>□ + ${a} = ${x + a}</b>`, x, [x + a, a, x + 1],
+          `□ = ${x + a} − ${a} = <b>${x}</b>.`);
+      return numQ('arith', `Tìm số thích hợp điền vào ô trống: <b>□ − ${a} = ${x}</b>`, x + a, [x, x - a, a],
+        `□ = ${x} + ${a} = <b>${x + a}</b>.`);
+    }
+    if (b === 2) {
+      const x = rand(2, 40), a = rand(2, 30), m = rand(2, 9);
+      return numQ('arith', `Tìm □, biết: <b>(□ + ${a}) × ${m} = ${(x + a) * m}</b>`, x, [x + a, (x + a) * m - a, x * m],
+        `□ + ${a} = ${(x + a) * m} : ${m} = ${x + a}, nên □ = ${x + a} − ${a} = <b>${x}</b>.`);
+    }
+    for (;;) {
+      const x = rand(5, 60), a = rand(2, 9), c = rand(2, 9), d = rand(20, 120), bb = d * c - x * a;
+      if (bb <= 0) continue;
+      return numQ('arith', `Tìm □, biết: <b>(□ × ${a} + ${bb}) : ${c} = ${d}</b>`, x, [x + 1, d * c, x * a],
+        `□ × ${a} + ${bb} = ${d} × ${c} = ${d * c}; □ × ${a} = ${d * c} − ${bb} = ${x * a}; □ = ${x * a} : ${a} = <b>${x}</b>.`);
+    }
+  });
+
+  // Tổng – hiệu, tổng – tỉ
+  arith.push(function sumDiff(g) {
+    const b = band(g);
+    if (b === 1) {
+      const a = rand(5, 20), d = rand(2, 9);
+      return numQ('arith', `Lan có ${a} bông hoa. Mai có nhiều hơn Lan ${d} bông hoa. Hỏi cả hai bạn có bao nhiêu bông hoa?`,
+        2 * a + d, [a + d, 2 * a, 2 * a + 2 * d],
+        `Mai có ${a} + ${d} = ${a + d} bông. Cả hai có ${a} + ${a + d} = <b>${2 * a + d}</b> bông.`);
+    }
+    if (b === 2 || Math.random() < 0.5) {
+      const small = rand(10, b === 2 ? 80 : 400), diff = rand(4, b === 2 ? 40 : 150), big = small + diff, S = small + big;
+      const askBig = Math.random() < 0.5;
+      return numQ('arith', `Tổng của hai số là ${fmt(S)}, hiệu của chúng là ${diff}. Tìm số ${askBig ? 'lớn' : 'bé'}.`,
+        askBig ? big : small, [askBig ? small : big, S - diff, (S + diff) / 2 + diff],
+        `Số lớn = (Tổng + Hiệu) : 2 = (${fmt(S)} + ${diff}) : 2 = ${big}.<br>Số bé = (Tổng − Hiệu) : 2 = (${fmt(S)} − ${diff}) : 2 = ${small}.`);
+    }
+    const k = rand(2, 6), small = rand(8, 60), S = small * (k + 1);
+    return numQ('arith', `Hai bạn có tất cả ${S} viên bi. Số bi của Nam gấp ${k} lần số bi của Hà. Hỏi Nam có bao nhiêu viên bi?`,
+      small * k, [small, S - k, small * (k - 1)],
+      `Coi số bi của Hà là 1 phần thì của Nam là ${k} phần, tổng ${k + 1} phần. Một phần: ${S} : ${k + 1} = ${small}. Nam có ${small} × ${k} = <b>${small * k}</b> viên.`);
+  });
+
+  // Gà – chó
+  arith.push(function chickenDog(g) {
+    const b = band(g);
+    if (b === 1) {
+      const c = rand(2, 8), d = rand(1, 5);
+      return numQ('arith', `Trong sân có ${c} con gà và ${d} con chó. Hỏi có tất cả bao nhiêu cái chân?`,
+        2 * c + 4 * d, [2 * (c + d), 4 * (c + d), c + d],
+        `Gà có 2 chân, chó có 4 chân. Số chân: ${c} × 2 + ${d} × 4 = ${2 * c} + ${4 * d} = <b>${2 * c + 4 * d}</b>.`);
+    }
+    const H = b === 2 ? rand(8, 20) : rand(20, 50), d = rand(1, H - 1), L = 2 * H + 2 * d;
+    const askDog = Math.random() < 0.5;
+    return numQ('arith', `Vừa gà vừa chó có ${H} con, đếm được ${L} cái chân. Hỏi có bao nhiêu con ${askDog ? 'chó' : 'gà'}?`,
+      askDog ? d : H - d, [askDog ? H - d : d, L / 4, L - 2 * H],
+      `Giả sử tất cả đều là gà thì có ${H} × 2 = ${2 * H} chân, ít hơn thực tế ${L} − ${2 * H} = ${L - 2 * H} chân. Mỗi con chó hơn con gà 2 chân nên số chó là ${L - 2 * H} : 2 = ${d}, số gà là ${H} − ${d} = ${H - d}.`);
+  });
+
+  // Trung bình cộng / phần trăm
+  arith.push(function average(g) {
+    const b = band(g);
+    if (b === 1) {
+      const per = rand(2, 5), n = rand(3, 9);
+      return numQ('arith', `Mỗi hộp có ${per} cái bánh. Hỏi ${n} hộp có bao nhiêu cái bánh?`, per * n, [per + n, per * (n - 1), per * (n + 1)],
+        `${n} hộp có ${per} × ${n} = <b>${per * n}</b> cái bánh.`);
+    }
+    if (b === 3 && Math.random() < 0.4) {
+      const G = 20 * rand(5, 45), p = pick([10, 20, 25, 50]), after = G - (G * p) / 100;
+      return numQ('arith', `Một món đồ chơi giá ${G} nghìn đồng được giảm giá ${p}%. Hỏi giá sau khi giảm là bao nhiêu nghìn đồng?`,
+        after, [(G * p) / 100, G - p, G + (G * p) / 100],
+        `Số tiền được giảm: ${G} × ${p} : 100 = ${(G * p) / 100} (nghìn đồng). Giá mới: ${G} − ${(G * p) / 100} = <b>${after}</b> nghìn đồng.`);
+    }
+    for (;;) {
+      const n = rand(3, b === 2 ? 4 : 6), a = rand(10, 50), bb = a + pick([-1, 1]) * rand(1, 6), x = (n + 1) * bb - n * a;
+      if (x <= 0) continue;
+      return numQ('arith', `Trung bình cộng của ${n} số là ${a}. Thêm một số nữa thì trung bình cộng của ${n + 1} số là ${bb}. Số thêm vào là bao nhiêu?`,
+        x, [bb, bb - a + bb, x + n],
+        `Tổng ${n} số ban đầu: ${a} × ${n} = ${a * n}. Tổng ${n + 1} số: ${bb} × ${n + 1} = ${bb * (n + 1)}. Số thêm vào: ${bb * (n + 1)} − ${a * n} = <b>${x}</b>.`);
+    }
+  });
+
+  // =====================================================================
+  // 3. LÝ THUYẾT SỐ (NUMBER THEORY)
+  // =====================================================================
+  const numth = [];
+
+  // Đếm số chia hết
+  numth.push(function divisibleCount(g) {
+    const b = band(g);
+    if (b === 1) {
+      const lo = rand(0, g === 1 ? 10 : 40), hi = lo + rand(6, g === 1 ? 14 : 40), even = Math.random() < 0.5;
+      let c = 0;
+      for (let i = lo + 1; i < hi; i++) if (i % 2 === (even ? 0 : 1)) c++;
+      return numQ('numth', `Có bao nhiêu số ${even ? 'chẵn' : 'lẻ'} lớn hơn ${lo} và nhỏ hơn ${hi}?`, c, [c + 1, c - 1, hi - lo - 1],
+        `Liệt kê các số ${even ? 'chẵn' : 'lẻ'} từ ${lo + 1} đến ${hi - 1} và đếm, ta được <b>${c}</b> số.`);
+    }
+    const N = rand(50, b === 2 ? 300 : 1000);
+    if (b === 2 || Math.random() < 0.4) {
+      const k = rand(3, 9), c = Math.floor(N / k);
+      return numQ('numth', `Từ 1 đến ${N} có bao nhiêu số chia hết cho ${k}?`, c, [c + 1, c - 1, Math.round(N / k) + 1],
+        `Các số đó là ${k}, ${2 * k}, ${3 * k}, ..., ${c * k} (vì ${N} : ${k} = ${c} dư ${N % k}). Có <b>${c}</b> số.`);
+    }
+    let a, c2;
+    do { a = rand(2, 7); c2 = rand(2, 9); } while (a === c2 || a % c2 === 0 || c2 % a === 0);
+    const l = lcm(a, c2), ans = Math.floor(N / a) + Math.floor(N / c2) - Math.floor(N / l);
+    return numQ('numth', `Từ 1 đến ${N} có bao nhiêu số chia hết cho ${a} hoặc chia hết cho ${c2}?`, ans,
+      [Math.floor(N / a) + Math.floor(N / c2), ans - 1, ans + Math.floor(N / l) + 1],
+      `Chia hết cho ${a}: ${Math.floor(N / a)} số. Chia hết cho ${c2}: ${Math.floor(N / c2)} số. Chia hết cho cả hai (tức chia hết cho ${l}): ${Math.floor(N / l)} số (bị đếm 2 lần).<br>Kết quả: ${Math.floor(N / a)} + ${Math.floor(N / c2)} − ${Math.floor(N / l)} = <b>${ans}</b>.`);
+  });
+
+  // Đánh số trang sách
+  function digitsUpTo(N) {
+    let d = 0;
+    for (let i = 1; i <= N; i++) d += String(i).length;
+    return d;
+  }
+  function pagesExplain(N) {
+    const parts = [];
+    const one = Math.min(N, 9);
+    parts.push(`Trang 1–${one}: ${one} × 1 = ${one} chữ số`);
+    if (N >= 10) parts.push(`Trang 10–${Math.min(N, 99)}: ${Math.min(N, 99) - 9} × 2 = ${(Math.min(N, 99) - 9) * 2} chữ số`);
+    if (N >= 100) parts.push(`Trang 100–${N}: ${N - 99} × 3 = ${(N - 99) * 3} chữ số`);
+    return parts.join('<br>');
+  }
+  numth.push(function pages(g) {
+    const b = band(g);
+    if (b === 3 && Math.random() < 0.5) {
+      const N = rand(100, 600), D = digitsUpTo(N);
+      return numQ('numth', `Để đánh số trang một quyển sách (bắt đầu từ trang 1) người ta dùng hết ${fmt(D)} chữ số. Hỏi quyển sách có bao nhiêu trang?`,
+        N, [Math.floor(D / 3), N + 1, N - 1],
+        `${pagesExplain(N)}<br>Tổng: ${fmt(D)} chữ số. Vậy sách có <b>${N}</b> trang.<br><i>Cách làm:</i> 9 trang đầu dùng 9 chữ số, 90 trang tiếp dùng 180 chữ số. Còn ${D} − 189 = ${D - 189} chữ số cho các trang có 3 chữ số: ${D - 189} : 3 = ${N - 99} trang. Số trang: 99 + ${N - 99} = ${N}.`);
+    }
+    const N = b === 1 ? rand(10, 40) : rand(50, 300), D = digitsUpTo(N);
+    return numQ('numth', `Viết các số liên tiếp từ 1 đến ${N} thì phải viết tất cả bao nhiêu chữ số?`, D, [N, 2 * N, D - 9],
+      `${pagesExplain(N)}<br>Tổng cộng: <b>${fmt(D)}</b> chữ số.`);
+  });
+
+  // Phép chia có dư
+  numth.push(function remainder(g) {
+    const b = band(g);
+    if (b === 1) {
+      const k = rand(2, 5), q = rand(2, 6), r = rand(1, k - 1), n = k * q + r;
+      return numQ('numth', `Có ${n} cái kẹo chia đều cho ${k} bạn, mỗi bạn được nhiều nhất có thể. Hỏi còn thừa mấy cái kẹo?`, r, [q, k - r, 0],
+        `${n} : ${k} = ${q} (dư ${r}). Mỗi bạn được ${q} cái và còn thừa <b>${r}</b> cái.`);
+    }
+    if (b === 2) {
+      let a, c;
+      do { a = rand(2, 9); c = rand(2, 9); } while (a === c);
+      const r = rand(1, Math.min(a, c) - 1 || 1), l = lcm(a, c), ans = l + r;
+      if (r >= Math.min(a, c)) return remainder(g);
+      return numQ('numth', `Tìm số nhỏ nhất lớn hơn ${r} mà chia cho ${a} dư ${r} và chia cho ${c} dư ${r}.`, ans, [a * c + r, l, l - r],
+        `Số cần tìm trừ đi ${r} thì chia hết cho cả ${a} và ${c}, tức là chia hết cho BCNN(${a}, ${c}) = ${l}. Số nhỏ nhất (lớn hơn ${r}) là ${l} + ${r} = <b>${ans}</b>.`);
+    }
+    const set = pick([[2, 3, 4], [3, 4, 5], [2, 3, 5], [4, 5, 6], [2, 5, 7], [3, 5, 7], [2, 3, 7], [3, 4, 7]]);
+    const l = set.reduce(lcm), ans = l - 1;
+    return numQ('numth', `Tìm số tự nhiên nhỏ nhất chia cho ${set[0]} dư ${set[0] - 1}, chia cho ${set[1]} dư ${set[1] - 1} và chia cho ${set[2]} dư ${set[2] - 1}.`,
+      ans, [l, l + 1, set[0] * set[1] * set[2] - 1],
+      `Nếu thêm 1 vào số đó thì được số chia hết cho ${set.join(', ')}. Số nhỏ nhất chia hết cho ${set.join(', ')} là BCNN = ${l}. Vậy số cần tìm là ${l} − 1 = <b>${ans}</b>.`);
+  });
+
+  // Tổng các chữ số
+  numth.push(function digitSum(g) {
+    const b = band(g);
+    const three = b === 3;
+    const s = three ? rand(3, 12) : rand(b === 1 ? 2 : 4, b === 1 ? 9 : 16);
+    let c = 0;
+    const lo = three ? 100 : 10, hi = three ? 999 : 99;
+    const list = [];
+    for (let i = lo; i <= hi; i++) {
+      const ds = String(i).split('').reduce((x, y) => x + +y, 0);
+      if (ds === s) { c++; if (list.length < 12) list.push(i); }
+    }
+    return numQ('numth', `Có bao nhiêu số có ${three ? 'ba' : 'hai'} chữ số mà tổng các chữ số bằng ${s}?`, c, [c + 1, c - 1, s, s + 1],
+      three
+        ? `Xét chữ số hàng trăm a (1–9), tổng hai chữ số còn lại là ${s} − a; đếm số cách cho từng trường hợp rồi cộng lại được <b>${c}</b> số.`
+        : `Đó là các số: ${list.join(', ')}${c > list.length ? ', ...' : ''}. Có <b>${c}</b> số.`);
+  });
+
+  // Chữ số tận cùng của lũy thừa (lớp 5–6) / số ước
+  numth.push(function lastDigitOrDivisors(g) {
+    const b = band(g);
+    if (b < 3) {
+      // Số lớn nhất / nhỏ nhất có các chữ số khác nhau
+      const digits = b === 1 ? 2 : 3;
+      const kind = pick(['maxDiff', 'minDiff', 'maxEven', 'minOdd']);
+      let ans;
+      const lo = 10 ** (digits - 1), hi = 10 ** digits - 1;
+      const distinct = (n) => new Set(String(n)).size === String(n).length;
+      const label = { maxDiff: 'lớn nhất', minDiff: 'nhỏ nhất', maxEven: 'chẵn lớn nhất', minOdd: 'lẻ nhỏ nhất' }[kind];
+      const cand = [];
+      for (let i = lo; i <= hi; i++) if (distinct(i)) {
+        if (kind === 'maxEven' && i % 2) continue;
+        if (kind === 'minOdd' && i % 2 === 0) continue;
+        cand.push(i);
+      }
+      ans = kind.startsWith('max') ? cand[cand.length - 1] : cand[0];
+      return numQ('numth', `Số ${label} có ${digits === 2 ? 'hai' : 'ba'} chữ số khác nhau là số nào?`, ans,
+        [kind.startsWith('max') ? hi : lo, kind.startsWith('max') ? cand[cand.length - 2] : cand[1], kind.startsWith('max') ? hi - 1 : lo + 1],
+        `Các chữ số phải khác nhau${kind.includes('Even') ? ' và chữ số hàng đơn vị là số chẵn' : kind.includes('Odd') ? ' và chữ số hàng đơn vị là số lẻ' : ''}. Chọn chữ số ${kind.startsWith('max') ? 'lớn' : 'nhỏ'} nhất có thể cho hàng cao nhất trước, ta được <b>${ans}</b>.`);
+    }
+    if (Math.random() < 0.5) {
+      const base = pick([2, 3, 7, 8, 4, 9]), n = rand(20, 2026);
+      const cycle = [];
+      let v = base % 10;
+      while (!cycle.includes(v)) { cycle.push(v); v = (v * base) % 10; }
+      const ans = cycle[(n - 1) % cycle.length];
+      const opts = shuffle([...new Set([ans, ...shuffle(cycle), ...shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])])]).slice(0, 4);
+      if (!opts.includes(ans)) opts[0] = ans;
+      return {
+        topic: 'numth',
+        text: `Tìm chữ số tận cùng của tích gồm ${n} thừa số ${base}: <b>${base} × ${base} × ... × ${base}</b> (tức ${base}<sup>${n}</sup>).`,
+        answer: String(ans), options: shuffle(opts).map(String),
+        explain: `Chữ số tận cùng của ${base}<sup>1</sup>, ${base}<sup>2</sup>, ${base}<sup>3</sup>, ... lặp lại theo chu kỳ ${cycle.join(', ')} (độ dài ${cycle.length}). ${n} chia ${cycle.length} dư ${n % cycle.length}${n % cycle.length === 0 ? ' (ứng với chữ số cuối của chu kỳ)' : ` (ứng với chữ số thứ ${n % cycle.length} của chu kỳ)`} nên chữ số tận cùng là <b>${ans}</b>.`,
+        svg: null,
+      };
+    }
+    const n = rand(12, 200);
+    const divs = [];
+    for (let i = 1; i <= n; i++) if (n % i === 0) divs.push(i);
+    return numQ('numth', `Số ${n} có tất cả bao nhiêu ước số?`, divs.length, [divs.length - 1, divs.length + 1, divs.length - 2],
+      `Các ước của ${n}: ${divs.join(', ')}. Có <b>${divs.length}</b> ước.`);
+  });
+
+  // =====================================================================
+  // 4. HÌNH HỌC (GEOMETRY)
+  // =====================================================================
+  const geo = [];
+
+  // Chu vi, diện tích
+  geo.push(function perimeterArea(g) {
+    const b = band(g);
+    if (b === 1) {
+      const a = rand(3, 12), w = rand(2, a - 1);
+      return numQ('geo', `Một hình chữ nhật có chiều dài ${a} cm, chiều rộng ${w} cm. Tính chu vi hình chữ nhật đó (cm).`,
+        2 * (a + w), [a + w, a * w, 2 * a + w],
+        `Chu vi = (dài + rộng) × 2 = (${a} + ${w}) × 2 = <b>${2 * (a + w)}</b> cm.`);
+    }
+    if (b === 2) {
+      if (Math.random() < 0.5) {
+        const s = rand(3, 25), P = 4 * s;
+        return numQ('geo', `Một hình vuông có chu vi ${P} cm. Tính diện tích hình vuông đó (cm²).`, s * s, [P, s * 4 * 2, (s + 1) * (s + 1)],
+          `Cạnh hình vuông: ${P} : 4 = ${s} cm. Diện tích: ${s} × ${s} = <b>${s * s}</b> cm².`);
+      }
+      const a = rand(6, 30), w = rand(2, a - 1), P = 2 * (a + w);
+      return numQ('geo', `Một hình chữ nhật có chu vi ${P} cm, chiều dài ${a} cm. Tính diện tích hình chữ nhật đó (cm²).`, a * w, [P * a, a * (P / 2), (P - a) * a, a + w],
+        `Nửa chu vi: ${P} : 2 = ${a + w} cm. Chiều rộng: ${a + w} − ${a} = ${w} cm. Diện tích: ${a} × ${w} = <b>${a * w}</b> cm².`);
+    }
+    const w = rand(3, 15), k = rand(2, 5), a = k * w, P = 2 * (a + w);
+    return numQ('geo', `Một hình chữ nhật có chu vi ${P} cm và chiều dài gấp ${k} lần chiều rộng. Tính diện tích hình chữ nhật (cm²).`, a * w,
+      [P, w * w * (k + 1), a * w * 2],
+      `Nửa chu vi: ${P / 2} cm = ${k + 1} lần chiều rộng. Chiều rộng: ${P / 2} : ${k + 1} = ${w} cm, chiều dài: ${a} cm. Diện tích: ${a} × ${w} = <b>${a * w}</b> cm².`);
+  });
+
+  // Đếm hình vuông / hình chữ nhật trên lưới
+  geo.push(function countShapes(g) {
+    const b = band(g);
+    if (b === 1 && Math.random() < 0.5) {
+      const n = rand(3, 5), ans = (n * (n + 1)) / 2;
+      return numQ('geo', `Hình dưới đây có bao nhiêu hình chữ nhật?`, ans, [n, ans - 1, 2 * n],
+        `Băng giấy được chia thành ${n} ô. Hình chữ nhật gồm 1 ô: ${n}; 2 ô: ${n - 1}; ...; ${n} ô: 1. Tổng: ${Array.from({ length: n }, (_, i) => n - i).join(' + ')} = <b>${ans}</b>.`,
+        svgGrid(1, n));
+    }
+    if (b === 3 && Math.random() < 0.5) {
+      const m = rand(2, 3), n = rand(3, 4), ans = C2(m + 1) * C2(n + 1);
+      return numQ('geo', `Hình dưới đây (lưới ${m} hàng × ${n} cột) có tất cả bao nhiêu hình chữ nhật (kể cả hình vuông)?`, ans,
+        [m * n, ans - m * n, C2(m + 1) + C2(n + 1)],
+        `Mỗi hình chữ nhật được xác định bởi 2 trong ${m + 1} đường ngang và 2 trong ${n + 1} đường dọc. Số cách chọn đường ngang: ${C2(m + 1)}, đường dọc: ${C2(n + 1)}. Tổng: ${C2(m + 1)} × ${C2(n + 1)} = <b>${ans}</b>.`,
+        svgGrid(m, n));
+    }
+    const n = b === 1 ? rand(2, 3) : b === 2 ? rand(3, 4) : rand(4, 5);
+    let ans = 0;
+    const parts = [];
+    for (let k = 1; k <= n; k++) { ans += (n - k + 1) ** 2; parts.push(`${(n - k + 1) ** 2} hình ${k}×${k}`); }
+    return numQ('geo', `Hình vuông lưới ${n} × ${n} dưới đây có tất cả bao nhiêu hình vuông?`, ans, [n * n, n * n + 1, ans - 1, ans + n],
+      `Đếm theo kích thước: ${parts.join(', ')}. Tổng: <b>${ans}</b> hình vuông.`, svgGrid(n, n));
+  });
+
+  // Đếm tam giác hình quạt
+  geo.push(function countTriangles(g) {
+    const b = band(g);
+    const n = b === 1 ? rand(3, 4) : b === 2 ? rand(4, 6) : rand(5, 7);
+    const ans = C2(n);
+    return numQ('geo', `Hình dưới đây có bao nhiêu hình tam giác?`, ans, [n - 1, n, ans - 1, ans + 1],
+      `Mỗi tam giác có chung đỉnh trên cùng và được tạo bởi 2 trong ${n} đoạn thẳng xuất phát từ đỉnh. Số tam giác: ${n - 1} + ${n - 2} + ... + 1 = ${n} × ${n - 1} : 2 = <b>${ans}</b>.`,
+      svgFan(n));
+  });
+
+  // Ghép hình vuông / lập phương sơn màu / góc
+  geo.push(function solidsAngles(g) {
+    const b = band(g);
+    if (b === 1) {
+      const k = rand(2, 4), a = rand(1, 5);
+      return numQ('geo', `Xếp ${k} hình vuông cạnh ${a} cm thành một hàng ngang (sát nhau) được một hình chữ nhật. Tính chu vi hình chữ nhật đó (cm).`,
+        2 * (k * a + a), [4 * a * k, k * a + a, 4 * a],
+        `Hình chữ nhật có chiều dài ${k} × ${a} = ${k * a} cm, chiều rộng ${a} cm. Chu vi: (${k * a} + ${a}) × 2 = <b>${2 * (k * a + a)}</b> cm.`);
+    }
+    if (b === 2 || Math.random() < 0.5) {
+      const n = rand(3, b === 2 ? 5 : 7), f = pick([0, 1, 2, 3]);
+      const vals = [(n - 2) ** 3, 6 * (n - 2) ** 2, 12 * (n - 2), 8];
+      const why = [
+        `Các khối không được sơn nằm hoàn toàn bên trong, tạo thành khối ${n - 2}×${n - 2}×${n - 2}: ${vals[0]} khối.`,
+        `Khối sơn 1 mặt nằm giữa mỗi mặt lớn (không chạm cạnh): mỗi mặt có ${n - 2}×${n - 2} = ${(n - 2) ** 2} khối, 6 mặt có ${vals[1]} khối.`,
+        `Khối sơn 2 mặt nằm trên các cạnh (trừ đỉnh): mỗi cạnh có ${n - 2} khối, 12 cạnh có ${vals[2]} khối.`,
+        `Khối sơn 3 mặt nằm ở 8 đỉnh của khối lập phương: 8 khối.`,
+      ];
+      return numQ('geo', `Một khối lập phương lớn được sơn tất cả các mặt rồi cắt thành ${n ** 3} khối lập phương nhỏ bằng nhau (${n} × ${n} × ${n}). Có bao nhiêu khối nhỏ ${f === 0 ? 'không được sơn mặt nào' : `được sơn đúng ${f} mặt`}?`,
+        vals[f], vals.filter((v, i) => i !== f), why[f]);
+    }
+    if (Math.random() < 0.5) {
+      const A = rand(30, 90), B = rand(20, 150 - A), Cc = 180 - A - B;
+      return numQ('geo', `Tam giác ABC có góc A = ${A}°, góc B = ${B}°. Tính số đo góc C (độ).`, Cc, [180 - A, 180 - B, 360 - A - B, A + B],
+        `Tổng ba góc của một tam giác bằng 180°. Góc C = 180° − ${A}° − ${B}° = <b>${Cc}°</b>.`);
+    }
+    const top = 2 * rand(10, 70), base = (180 - top) / 2;
+    return numQ('geo', `Tam giác ABC cân tại A có góc A = ${top}°. Tính số đo góc B (độ).`, base, [top, 180 - top, base + 10],
+      `Tam giác cân tại A nên góc B = góc C. Góc B = (180° − ${top}°) : 2 = <b>${base}°</b>.`);
+  });
+
+  // =====================================================================
+  // 5. TỔ HỢP (COMBINATORICS)
+  // =====================================================================
+  const comb = [];
+
+  // Quy tắc nhân: chọn trang phục
+  comb.push(function outfits(g) {
+    const b = band(g);
+    const a = rand(2, 5), c = rand(2, 4);
+    if (b === 1) {
+      return numQ('comb', `Lan có ${a} chiếc áo và ${c} chiếc váy khác nhau. Hỏi Lan có bao nhiêu cách chọn một bộ gồm 1 áo và 1 váy?`, a * c, [a + c, a * c + 1, a * c - 1],
+        `Mỗi chiếc áo có thể đi với ${c} chiếc váy. Số cách: ${a} × ${c} = <b>${a * c}</b>.`);
+    }
+    const h = rand(2, 4);
+    return numQ('comb', `Nam có ${a} áo, ${c} quần và ${h} mũ khác nhau. Hỏi Nam có bao nhiêu cách chọn một bộ gồm 1 áo, 1 quần và 1 mũ?`, a * c * h,
+      [a + c + h, a * c + h, a * c * h - a],
+      `Theo quy tắc nhân: ${a} × ${c} × ${h} = <b>${a * c * h}</b> cách.`);
+  });
+
+  // Bắt tay / thi đấu vòng tròn
+  comb.push(function handshakes(g) {
+    const b = band(g);
+    const n = b === 1 ? rand(3, 5) : b === 2 ? rand(5, 12) : rand(8, 30);
+    const T = C2(n);
+    if (b === 3 && Math.random() < 0.5) {
+      return numQ('comb', `Trong một giải bóng đá, mỗi đội đấu với mỗi đội khác đúng 1 trận. Có tất cả ${T} trận đấu. Hỏi có bao nhiêu đội tham gia?`, n,
+        [n + 1, n - 1, Math.round(Math.sqrt(2 * T))],
+        `Với n đội thì số trận là n × (n − 1) : 2. Ta cần n × (n − 1) = ${T} × 2 = ${2 * T} = ${n} × ${n - 1}. Vậy có <b>${n}</b> đội.`);
+    }
+    return numQ('comb', `Có ${n} bạn gặp nhau, mỗi bạn bắt tay mỗi bạn khác đúng một lần. Hỏi có tất cả bao nhiêu cái bắt tay?`, T, [n * (n - 1), n * n, T + n],
+      `Mỗi bạn bắt tay ${n - 1} bạn khác, nhưng mỗi cái bắt tay được tính 2 lần. Số cái bắt tay: ${n} × ${n - 1} : 2 = <b>${T}</b>.`);
+  });
+
+  // Lập số từ các chữ số cho trước
+  comb.push(function formNumbers(g) {
+    const b = band(g);
+    let digits, m, even = false;
+    if (b === 1) { digits = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 3); m = 2; }
+    else if (b === 2) { digits = shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 4); m = pick([2, 3]); }
+    else { digits = shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, rand(4, 5)); m = 3; even = Math.random() < 0.5; }
+    digits.sort((x, y) => x - y);
+    if (even && !digits.some((d) => d % 2 === 0)) even = false;
+    const results = [];
+    (function build(prefix, used) {
+      if (prefix.length === m) {
+        if (prefix[0] === 0) return;
+        if (even && prefix[m - 1] % 2) return;
+        results.push(prefix.join(''));
+        return;
+      }
+      for (const d of digits) if (!used.has(d)) { used.add(d); build([...prefix, d], used); used.delete(d); }
+    })([], new Set());
+    const ans = results.length, k = digits.length;
+    const hasZero = digits.includes(0);
+    let explain;
+    if (even) {
+      const byEnd = {};
+      for (const r of results) byEnd[r[m - 1]] = (byEnd[r[m - 1]] || 0) + 1;
+      explain = `Số chẵn phải tận cùng bằng chữ số chẵn. Đếm theo chữ số hàng đơn vị: ${Object.entries(byEnd).map(([d, c]) => `tận cùng ${d}: ${c} số`).join('; ')}. Tổng: <b>${ans}</b> số.`;
+    } else if (hasZero) {
+      const f = [k - 1];
+      for (let i = 1; i < m; i++) f.push(k - i);
+      explain = `Chữ số đầu tiên khác 0: có ${k - 1} cách. Các vị trí tiếp theo chọn từ các chữ số còn lại: ${f.slice(1).join(', ')} cách. Số các số: ${f.join(' × ')} = <b>${ans}</b>.`;
+    } else {
+      const f = Array.from({ length: m }, (_, i) => k - i);
+      explain = `Chữ số đầu có ${k} cách chọn, mỗi vị trí sau ít hơn 1 cách (các chữ số khác nhau). Số các số: ${f.join(' × ')} = <b>${ans}</b>.`;
+    }
+    return numQ('comb', `Từ các chữ số <b>${digits.join(', ')}</b> có thể lập được bao nhiêu số ${even ? 'chẵn ' : ''}có ${m === 2 ? 'hai' : 'ba'} chữ số khác nhau?`,
+      ans, [k ** m, ans + (hasZero ? k - 1 : 1), binom(k, m), ans * 2], explain);
+  });
+
+  // Nguyên lý Dirichlet (chim bồ câu)
+  comb.push(function pigeonhole(g) {
+    const b = band(g);
+    if (b === 3 && Math.random() < 0.5) {
+      const r = rand(3, 12), x = rand(3, 12), v = rand(3, 12);
+      return numQ('comb', `Trong hộp có ${r} bi đỏ, ${x} bi xanh và ${v} bi vàng. Không nhìn vào hộp, phải lấy ra ít nhất bao nhiêu viên bi để chắc chắn có ít nhất 1 viên bi đỏ?`,
+        x + v + 1, [x + v, r + 1, r + x + v],
+        `Trường hợp xấu nhất: lấy hết ${x} bi xanh và ${v} bi vàng trước (${x + v} viên) mà chưa có bi đỏ. Lấy thêm 1 viên nữa chắc chắn là bi đỏ. Cần ít nhất ${x + v} + 1 = <b>${x + v + 1}</b> viên.`);
+    }
+    const k = b === 1 ? rand(2, 3) : rand(3, 6), m = b === 1 ? 2 : rand(2, b === 2 ? 3 : 5);
+    const ans = k * (m - 1) + 1;
+    return numQ('comb', `Trong một túi có rất nhiều chiếc tất (vớ) gồm ${k} màu khác nhau. Không nhìn, phải lấy ra ít nhất bao nhiêu chiếc để chắc chắn có ${m} chiếc cùng màu?`,
+      ans, [k * m, k * (m - 1), k + m, ans + 1],
+      `Trường hợp xấu nhất: mỗi màu lấy được ${m - 1} chiếc, tức ${k} × ${m - 1} = ${k * (m - 1)} chiếc mà chưa có ${m} chiếc cùng màu. Lấy thêm 1 chiếc nữa là chắc chắn. Cần ít nhất <b>${ans}</b> chiếc.`);
+  });
+
+  // Đếm đường đi trên lưới
+  comb.push(function gridPaths(g) {
+    const b = band(g);
+    if (b === 1) {
+      const n = rand(3, 6), x = rand(2, 4);
+      return numQ('comb', `Có ${n} bạn xếp thành một hàng. Mỗi bạn được phát ${x} cái kẹo, bạn đứng đầu hàng được thêm 1 cái. Hỏi cần tất cả bao nhiêu cái kẹo?`,
+        n * x + 1, [n * x, n * (x + 1), n + x],
+        `${n} bạn × ${x} cái = ${n * x} cái, cộng thêm 1 cái cho bạn đứng đầu: <b>${n * x + 1}</b> cái.`);
+    }
+    const m = rand(2, b === 2 ? 2 : 3), n = rand(2, b === 2 ? 3 : 4), ans = binom(m + n, m);
+    return numQ('comb', `Một con kiến đi từ điểm A đến điểm B theo các đường kẻ của lưới dưới đây, mỗi bước chỉ được đi sang phải hoặc đi lên trên. Có bao nhiêu đường đi khác nhau?`,
+      ans, [m * n, m + n, ans - 1, ans + 2],
+      `Ghi số cách đi đến từng giao điểm: các điểm trên cạnh dưới và cạnh trái đều có 1 cách; mỗi điểm khác bằng tổng số ở điểm bên trái và điểm bên dưới. Điểm B nhận được <b>${ans}</b>.`,
+      svgGrid(m, n, { labels: true }));
+  });
+
+  // =====================================================================
+  const TOPICS = [
+    { id: 'logic', name: 'Tư duy logic', en: 'Logical Thinking', icon: '🧩', gens: logic },
+    { id: 'arith', name: 'Số học', en: 'Arithmetic', icon: '➕', gens: arith },
+    { id: 'numth', name: 'Lý thuyết số', en: 'Number Theory', icon: '🔢', gens: numth },
+    { id: 'geo', name: 'Hình học', en: 'Geometry', icon: '📐', gens: geo },
+    { id: 'comb', name: 'Tổ hợp', en: 'Combinatorics', icon: '🎲', gens: comb },
+  ];
+
+  /** Sinh 1 câu hỏi cho chủ đề và lớp. */
+  function generate(topicId, grade) {
+    const t = TOPICS.find((x) => x.id === topicId);
+    return pick(t.gens)(grade);
+  }
+
+  /** Sinh n câu không trùng nhau. */
+  function generateSet(topicId, grade, n) {
+    const seen = new Set();
+    const out = [];
+    let tries = 0;
+    while (out.length < n && tries < n * 50) {
+      tries++;
+      const q = generate(topicId, grade);
+      if (seen.has(q.text)) continue;
+      seen.add(q.text);
+      out.push(q);
+    }
+    return out;
+  }
+
+  /** Đề thi thử: 25 câu, 5 câu cho mỗi chủ đề (theo cấu trúc TIMO). */
+  function generateExam(grade) {
+    return TOPICS.flatMap((t) => generateSet(t.id, grade, 5));
+  }
+
+  const api = { TOPICS, generate, generateSet, generateExam };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.TimoGen = api;
+})(typeof window !== 'undefined' ? window : globalThis);
