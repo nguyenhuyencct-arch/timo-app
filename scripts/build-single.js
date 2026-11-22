@@ -7,6 +7,7 @@ const root = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 
 const html = read('index.html');
+const scripts = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
 const body = html.split('<body>')[1].split('</body>')[0]
   .replace(/\s*<script src="[^"]+"><\/script>/g, '');
 const out = `<title>Luyện Toán TIMO</title>
@@ -15,12 +16,7 @@ const out = `<title>Luyện Toán TIMO</title>
 ${read('css/styles.css')}
 </style>
 ${body.trim()}
-<script>
-${read('js/generators.js')}
-</script>
-<script>
-${read('js/app.js')}
-</script>
+${scripts.map((src) => `<script>\n${read(src)}\n</script>`).join('\n')}
 `;
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist/timo.html'), out);

@@ -86,7 +86,7 @@ main {
 
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   background: var(--card); border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
@@ -224,3 +224,38 @@ main {
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 .btn:focus-visible, .opt:focus-visible, .topic:focus-visible, .nav-q:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---------- Song ngữ ---------- */
+.pickers { display: flex; gap: 10px; align-items: center; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body[data-lang="vi"] .l-en { display: none; }
+body[data-lang="en"] .l-vi { display: none; }
+body[data-lang="bi"] .opt-label .l-vi::before,
+body[data-lang="bi"] .chip .l-vi::before,
+body[data-lang="bi"] .q-num .l-vi::before,
+body[data-lang="bi"] summary .l-vi::before,
+body[data-lang="bi"] .feedback .l-vi::before { content: " / "; opacity: .6; }
+body[data-lang="bi"] .opt-label .l-vi { font-weight: 500; }
+body[data-lang="bi"] .chip .l-vi, body[data-lang="bi"] .q-num .l-vi { display: none; }
+.q-dual { display: grid; gap: 10px; }
+body[data-lang="bi"] .q-dual .l-vi {
+  font-size: .9em; color: var(--muted); font-style: italic;
+  border-top: 1px dashed var(--border); padding-top: 10px;
+}
+body[data-lang="bi"] .q-dual .l-vi ul { font-style: italic; }
+button.link { background: none; border: 0; padding: 0; color: var(--primary); text-decoration: underline; font-weight: 600; }
+
+/* ---------- Từ vựng ---------- */
+.vocab-hero p { margin-top: 0; }
+.vocab-group summary { display: flex; justify-content: space-between; cursor: pointer; font-weight: 700; font-size: 18px; }
+.vocab-group .count { color: var(--muted); font-weight: 500; font-size: 14px; }
+.vocab-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
+.word { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+.w-en { font-weight: 700; color: var(--primary); }
+.w-vi { font-weight: 600; }
+.w-ex { color: var(--muted); font-size: 14px; font-style: italic; margin-top: 2px; }
+
+@media (max-width: 520px) {
+  .brand-long { display: none; }
+  .tabbar button span { font-size: 11px; }
+}

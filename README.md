@@ -23,6 +23,8 @@ Chạy hoàn toàn trên trình duyệt, không cần cài đặt hay máy chủ
 
 ## Tính năng
 
+- **Song ngữ Anh – Việt** như đề thi TIMO tại Việt Nam: chọn *Tiếng Việt*, *Song ngữ* (mặc định — tiếng Anh in trước, tiếng Việt in nghiêng bên dưới) hoặc *English*. Đổi giữa chừng không mất bài đang làm. Lời giải luôn bằng tiếng Việt.
+- **Từ vựng Toán tiếng Anh**: gần 80 từ theo 5 chủ đề và nhóm từ hay gặp trong câu hỏi (how many, at least, remainder, perimeter…), có ví dụ và trò đố 10 câu.
 - **Chọn lớp 1–6**: độ khó tự điều chỉnh (lớp 1–2 · 3–4 · 5–6).
 - **Luyện theo chủ đề**: 10 câu/lượt, chấm ngay, có **lời giải chi tiết** từng bước.
 - **Luyện tổng hợp**: 10 câu trộn đều 5 chủ đề.
@@ -58,7 +60,9 @@ node tests/generators.test.js
 ```
 index.html             Khung giao diện
 css/styles.css         Giao diện
-js/generators.js       Bộ sinh câu hỏi theo 5 chủ đề TIMO (dùng được cả trong Node)
+js/generators.js       Bộ sinh câu hỏi song ngữ theo 5 chủ đề TIMO (dùng được cả trong Node)
+js/vocab.js            Từ vựng Toán tiếng Anh theo chủ đề
+scripts/build-single.js  Đóng gói thành một file HTML (dist/timo.html)
 js/app.js              Luồng màn hình: trang chủ, luyện tập, thi thử, kết quả, giới thiệu
 tests/                 Kiểm thử tự động cho bộ sinh câu hỏi
 ```
@@ -66,4 +70,4 @@ tests/                 Kiểm thử tự động cho bộ sinh câu hỏi
 ## Thêm dạng toán mới
 
 Trong `js/generators.js`, thêm một hàm vào mảng của chủ đề tương ứng (`logic`, `arith`, `numth`, `geo`, `comb`).
-Hàm nhận `g` (lớp 1–6) và trả về câu hỏi qua `numQ(...)` hoặc `strQ(...)`. Chạy lại kiểm thử để chắc chắn đáp án luôn nằm trong các phương án.
+Hàm nhận `g` (lớp 1–6) và trả về câu hỏi qua `numQ(...)` hoặc `strQ(...)`, với đề bài dạng `[tiếng Việt, tiếng Anh]`. Chạy lại kiểm thử để chắc chắn đáp án luôn nằm trong các phương án.

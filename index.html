@@ -10,14 +10,24 @@
 <body>
   <header class="topbar">
     <button class="brand" data-go="home" aria-label="Về trang chủ">
-      <span class="logo">T</span><span>Luyện Toán <b>TIMO</b></span>
+      <span class="logo">T</span><span><span class="brand-long">Luyện Toán </span><b>TIMO</b></span>
     </button>
+    <div class="pickers">
+    <label class="grade-pick" title="Ngôn ngữ đề">
+      <span class="sr-only">Ngôn ngữ đề</span>
+      <select id="lang">
+        <option value="vi">Tiếng Việt</option>
+        <option value="bi">Song ngữ</option>
+        <option value="en">English</option>
+      </select>
+    </label>
     <label class="grade-pick">Lớp
       <select id="grade">
         <option value="1">1</option><option value="2">2</option><option value="3">3</option>
         <option value="4">4</option><option value="5">5</option><option value="6">6</option>
       </select>
     </label>
+    </div>
   </header>
 
   <main id="app"></main>
@@ -26,10 +36,12 @@
     <button data-go="home">🏠<span>Trang chủ</span></button>
     <button data-go="exam-intro">📝<span>Thi thử</span></button>
     <button data-go="stats">📊<span>Kết quả</span></button>
+    <button data-go="vocab">📖<span>Từ vựng</span></button>
     <button data-go="about">ℹ️<span>TIMO là gì?</span></button>
   </nav>
 
   <script src="js/generators.js"></script>
+  <script src="js/vocab.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

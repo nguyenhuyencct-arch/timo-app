@@ -2,8 +2,10 @@
 (function () {
   'use strict';
   const { TOPICS, generateSet, generateExam } = window.TimoGen;
+  const { VOCAB, VOCAB_GROUPS } = window.TimoVocab;
   const $app = document.getElementById('app');
   const $grade = document.getElementById('grade');
+  const $lang = document.getElementById('lang');
 
   const PRACTICE_LEN = 10;
   const EXAM_MINUTES = 60;
@@ -23,6 +25,22 @@
   $grade.value = grade;
   $grade.addEventListener('change', () => { grade = +$grade.value; store.set('grade', grade); go('home'); });
 
+  // Ngôn ngữ đề: 'vi' | 'bi' (song ngữ, như đề TIMO tại Việt Nam) | 'en'.
+  // Câu hỏi luôn được vẽ đủ cả hai bản; CSS ẩn/hiện theo body[data-lang] nên đổi giữa chừng không mất bài.
+  let lang = store.get('lang', 'bi');
+  function setLang(v) {
+    lang = ['vi', 'bi', 'en'].includes(v) ? v : 'bi';
+    $lang.value = lang;
+    document.body.dataset.lang = lang;
+    store.set('lang', lang);
+  }
+  setLang(lang);
+  $lang.addEventListener('change', () => setLang($lang.value));
+
+  /** Văn bản hai ngôn ngữ: phần tiếng Anh đứng trước như trên đề thi. */
+  const dual = (vi, en) => (en && en !== vi ? `<span class="l-en">${en}</span><span class="l-vi">${vi}</span>` : vi);
+  const optLabel = (q, o) => dual(o, q.optLabels && q.optLabels[o]);
+
   function recordAnswer(topic, correct) {
     const s = store.get('stats', {});
     const key = `${grade}:${topic}`;
@@ -40,7 +58,7 @@
     if (screen !== 'exam' && timer) { clearInterval(timer); timer = null; }
     document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.go === screen));
     window.scrollTo(0, 0);
-    ({ home, practice, 'exam-intro': examIntro, exam: examScreen, result, stats, about }[screen] || home)(arg);
+    ({ home, practice, 'exam-intro': examIntro, exam: examScreen, result, stats, vocab, about }[screen] || home)(arg);
   }
   /** Hộp xác nhận vẽ trong trang (thay cho hộp thoại của trình duyệt, vốn bị chặn ở một số nơi nhúng). */
   function ask(msg, okText = 'Đồng ý', cancelText = 'Hủy') {
@@ -130,7 +148,7 @@
       });
       document.getElementById('feedback').innerHTML = `
         <div class="feedback ${ok ? 'ok' : 'no'}">
-          <h3>${ok ? '🎉 Chính xác!' : `😅 Chưa đúng. Đáp án là <b>${q.answer}</b>`}</h3>
+          <h3>${ok ? '🎉 Chính xác!' : `😅 Chưa đúng. Đáp án là <b>${optLabel(q, q.answer)}</b>`}</h3>
           <div class="explain"><b>Lời giải:</b> ${q.explain}</div>
           <button class="btn primary" id="next">${i + 1 < qs.length ? 'Câu tiếp theo →' : 'Xem kết quả'}</button>
         </div>`;
@@ -157,14 +175,16 @@
   function questionCard(q, num, selected) {
     return `
       <article class="card question">
-        <div class="q-head"><span class="chip chip-${q.topic}">${topicById(q.topic).icon} ${topicById(q.topic).name}</span><span class="q-num">Câu ${num}</span></div>
-        <div class="q-text">${q.text}</div>
+        <div class="q-head"><span class="chip chip-${q.topic}">${topicById(q.topic).icon} ${dual(topicById(q.topic).name, topicById(q.topic).en)}</span><span class="q-num">${dual(`Câu ${num}`, `Question ${num}`)}</span></div>
+        ${qText(q)}
         ${q.svg ? `<div class="q-fig">${q.svg}</div>` : ''}
         <div class="opts">
-          ${q.options.map((o, k) => `<button class="opt${selected === o ? ' selected' : ''}" data-val="${o}"><span class="letter">${LETTERS[k]}</span><span>${o}</span></button>`).join('')}
+          ${q.options.map((o, k) => `<button class="opt${selected === o ? ' selected' : ''}" data-val="${o}"><span class="letter">${LETTERS[k]}</span><span class="opt-label">${optLabel(q, o)}</span></button>`).join('')}
         </div>
       </article>`;
   }
+
+  const qText = (q) => `<div class="q-text q-dual"><div class="l-en">${q.textEn}</div><div class="l-vi">${q.text}</div></div>`;
 
   // ---------- Thi thử ----------
   function examIntro() {
@@ -282,8 +302,8 @@
         const a = exam.answers[k];
         const ok = a === q.answer;
         return `<details class="card review ${ok ? 'ok' : 'no'}">
-          <summary>${ok ? '✅' : a === undefined ? '⬜' : '❌'} Câu ${k + 1} · ${topicById(q.topic).name} — Em chọn: <b>${a === undefined ? 'bỏ trống' : a}</b>${ok ? '' : ` · Đáp án: <b>${q.answer}</b>`}</summary>
-          <div class="q-text">${q.text}</div>
+          <summary>${ok ? '✅' : a === undefined ? '⬜' : '❌'} Câu ${k + 1} · ${topicById(q.topic).name} — Em chọn: <b>${a === undefined ? 'bỏ trống' : optLabel(q, a)}</b>${ok ? '' : ` · Đáp án: <b>${optLabel(q, q.answer)}</b>`}</summary>
+          ${qText(q)}
           ${q.svg ? `<div class="q-fig">${q.svg}</div>` : ''}
           <div class="explain"><b>Lời giải:</b> ${q.explain}</div>
         </details>`;
@@ -317,6 +337,81 @@
     });
   }
 
+  // ---------- Từ vựng ----------
+  function vocab() {
+    $app.innerHTML = `
+      <section class="card vocab-hero">
+        <h2>📖 Từ vựng Toán tiếng Anh</h2>
+        <p>Những từ hay gặp trong đề TIMO, chia theo chủ đề. Học xong thì chơi đố từ 10 câu nhé!</p>
+        <button class="btn primary" id="vquiz">🎯 Đố từ vựng</button>
+      </section>
+      ${VOCAB_GROUPS.map((g) => `
+        <details class="card vocab-group"${g.id === 'general' ? ' open' : ''}>
+          <summary><span>${g.icon} ${g.name}</span><span class="count">${VOCAB[g.id].length} từ</span></summary>
+          <div class="vocab-list">
+            ${VOCAB[g.id].map((w) => `
+              <div class="word">
+                <div class="w-en">${w.en}</div>
+                <div class="w-vi">${w.vi}</div>
+                ${w.ex ? `<div class="w-ex">${w.ex}</div>` : ''}
+              </div>`).join('')}
+          </div>
+        </details>`).join('')}`;
+    document.getElementById('vquiz').addEventListener('click', vocabQuiz);
+  }
+
+  function vocabQuiz() {
+    const all = VOCAB_GROUPS.flatMap((g) => VOCAB[g.id]);
+    const mix = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
+    const items = mix(all).slice(0, 10).map((w) => {
+      const toVi = Math.random() < 0.6; // hỏi nghĩa tiếng Việt nhiều hơn
+      const others = mix(all.filter((x) => x !== w)).slice(0, 3);
+      const key = toVi ? 'vi' : 'en';
+      return {
+        prompt: toVi ? `“<b>${w.en}</b>” nghĩa là gì?` : `“<b>${w.vi}</b>” trong tiếng Anh là gì?`,
+        answer: w[key], options: mix([w, ...others]).map((x) => x[key]), word: w,
+      };
+    });
+    let i = 0, right = 0;
+    function render() {
+      if (i >= items.length) {
+        $app.innerHTML = `<section class="card center"><div class="big">${right >= 8 ? '🏆' : right >= 5 ? '👍' : '💪'}</div>
+          <h2>Em đúng ${right}/${items.length} từ</h2>
+          <div class="hero-actions"><button class="btn primary" id="again">Đố tiếp</button><button class="btn" data-go="vocab">Xem bảng từ</button></div></section>`;
+        document.getElementById('again').addEventListener('click', vocabQuiz);
+        return;
+      }
+      const it = items[i];
+      $app.innerHTML = `
+        <div class="bar"><span>Đố từ vựng</span><span>Câu ${i + 1}/${items.length} · Đúng ${right}</span></div>
+        <div class="progress"><div style="width:${(100 * i) / items.length}%"></div></div>
+        <article class="card question">
+          <div class="q-text">${it.prompt}</div>
+          <div class="opts">${it.options.map((o, k) => `<button class="opt" data-k="${k}"><span class="letter">${LETTERS[k]}</span><span>${o}</span></button>`).join('')}</div>
+        </article>
+        <div id="feedback"></div>`;
+      $app.querySelectorAll('.opt').forEach((b) => b.addEventListener('click', () => {
+        const ok = it.options[+b.dataset.k] === it.answer;
+        if (ok) right++;
+        $app.querySelectorAll('.opt').forEach((x) => {
+          x.disabled = true;
+          if (it.options[+x.dataset.k] === it.answer) x.classList.add('correct');
+          else if (x === b) x.classList.add('wrong');
+        });
+        document.getElementById('feedback').innerHTML = `
+          <div class="feedback ${ok ? 'ok' : 'no'}">
+            <h3>${ok ? '🎉 Chính xác!' : '😅 Chưa đúng.'}</h3>
+            <div class="explain"><b>${it.word.en}</b> = ${it.word.vi}${it.word.ex ? `<br><i>Ví dụ: ${it.word.ex}</i>` : ''}</div>
+            <button class="btn primary" id="next">${i + 1 < items.length ? 'Câu tiếp theo →' : 'Xem kết quả'}</button>
+          </div>`;
+        const next = document.getElementById('next');
+        next.focus();
+        next.addEventListener('click', () => { i++; render(); });
+      }));
+    }
+    render();
+  }
+
   // ---------- Giới thiệu TIMO ----------
   function about() {
     $app.innerHTML = `
@@ -343,6 +438,13 @@
           <li>Vẽ hình hoặc sơ đồ đoạn thẳng cho bài toán tổng – hiệu, tổng – tỉ.</li>
           <li>Với bài đếm hình, đếm theo kích thước để không sót, không trùng.</li>
           <li>Phân bổ thời gian: khoảng 2 phút mỗi câu, câu khó để lại làm sau.</li>
+        </ul>
+        <h3>Học cùng tiếng Anh</h3>
+        <p>Điểm thi chỉ tính đáp án Toán, nhưng quen đọc đề tiếng Anh giúp em đọc nhanh hơn và tự tin khi thi các vòng cao. Gợi ý:</p>
+        <ul>
+          <li>Chọn <b>Song ngữ</b> ở góc trên để đề hiện cả tiếng Anh và tiếng Việt, giống đề thi thật.</li>
+          <li>Khi đã quen, thử chế độ <b>English</b> và chỉ xem bản tiếng Việt khi cần.</li>
+          <li>Học <button class="link" data-go="vocab">từ vựng Toán tiếng Anh</button> theo từng chủ đề và chơi trò đố từ.</li>
         </ul>
         <p class="hint">Thông tin về cấu trúc và thể thức thi có thể thay đổi theo từng năm. Phụ huynh nên xem thông báo chính thức của Ban tổ chức. Mức huy chương trong ứng dụng chỉ mang tính tham khảo.</p>
       </section>`;
