@@ -42,11 +42,31 @@
     window.scrollTo(0, 0);
     ({ home, practice, 'exam-intro': examIntro, exam: examScreen, result, stats, about }[screen] || home)(arg);
   }
-  document.addEventListener('click', (e) => {
+  /** Hộp xác nhận vẽ trong trang (thay cho hộp thoại của trình duyệt, vốn bị chặn ở một số nơi nhúng). */
+  function ask(msg, okText = 'Đồng ý', cancelText = 'Hủy') {
+    return new Promise((resolve) => {
+      const back = document.createElement('div');
+      back.className = 'modal-back';
+      back.innerHTML = `<div class="modal" role="dialog" aria-modal="true"><p>${msg}</p>
+        <div class="modal-actions"><button class="btn" data-a="0">${cancelText}</button><button class="btn primary" data-a="1">${okText}</button></div></div>`;
+      document.body.appendChild(back);
+      back.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-a]');
+        if (!b && e.target !== back) return;
+        back.remove();
+        resolve(!!b && b.dataset.a === '1');
+      });
+      back.querySelector('[data-a="1"]').focus();
+    });
+  }
+
+  document.addEventListener('click', async (e) => {
     const el = e.target.closest('[data-go]');
     if (!el) return;
-    if (exam && !exam.done && el.dataset.go !== 'exam' && !confirm('Bạn đang làm bài thi. Thoát sẽ mất bài làm. Bạn chắc chứ?')) return;
-    if (exam && !exam.done && el.dataset.go !== 'exam') exam = null;
+    if (exam && !exam.done) {
+      if (!(await ask('Em đang làm bài thi. Thoát ra sẽ mất bài làm. Em chắc chứ?', 'Thoát', 'Làm tiếp'))) return;
+      exam = null;
+    }
     go(el.dataset.go, el.dataset.arg);
   });
 
@@ -202,12 +222,13 @@
       if (nextq) nextq.addEventListener('click', () => { exam.cur++; render(); });
       document.getElementById('submit').addEventListener('click', () => {
         const left = 25 - Object.keys(exam.answers).length;
-        if (confirm(left ? `Em còn ${left} câu chưa làm. Nộp bài luôn chứ?` : 'Nộp bài nhé?')) submit(false);
+        ask(left ? `Em còn ${left} câu chưa làm. Nộp bài luôn chứ?` : 'Em nộp bài nhé?', 'Nộp bài', 'Làm tiếp').then((ok) => ok && submit(false));
       });
     }
     function submit(timeout) {
       if (exam.done) return;
       exam.done = true;
+      document.querySelectorAll('.modal-back').forEach((m) => m.remove());
       clearInterval(timer); timer = null;
       exam.qs.forEach((q, k) => recordAnswer(q.topic, exam.answers[k] === q.answer));
       const right = exam.qs.filter((q, k) => exam.answers[k] === q.answer).length;
@@ -292,7 +313,7 @@
         <button class="btn small" id="reset">Xóa dữ liệu</button>
       </section>`;
     document.getElementById('reset').addEventListener('click', () => {
-      if (confirm('Xóa toàn bộ kết quả luyện tập và lịch sử thi?')) { store.set('stats', {}); store.set('history', []); stats(); }
+      ask('Xóa toàn bộ kết quả luyện tập và lịch sử thi?', 'Xóa', 'Hủy').then((ok) => { if (ok) { store.set('stats', {}); store.set('history', []); stats(); } });
     });
   }
 

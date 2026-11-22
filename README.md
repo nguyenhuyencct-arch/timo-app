@@ -41,6 +41,12 @@ xdg-open index.html        # hoặc nhấp đúp vào file index.html
 python3 -m http.server 8000   # rồi mở http://localhost:8000
 ```
 
+Đóng gói thành một file HTML duy nhất (dễ gửi qua Zalo/email hoặc đăng lên web để mở trên điện thoại):
+
+```bash
+node scripts/build-single.js   # tạo dist/timo.html
+```
+
 Kiểm thử bộ sinh câu hỏi (cần Node.js):
 
 ```bash
