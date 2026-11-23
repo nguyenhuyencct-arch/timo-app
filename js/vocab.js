@@ -30,6 +30,11 @@
       { en: 'interval', vi: 'khoảng (cách)', ex: 'one tree every 5 m' },
       { en: 'floor', vi: 'tầng (nhà)', ex: 'from the 1st floor to the 4th floor' },
       { en: 'truth / lie', vi: 'nói thật / nói dối', ex: 'Only one of them tells the truth.' },
+      { en: 'according to', vi: 'theo, dựa vào', ex: 'According to the pattern below, ...' },
+      { en: 'blank', vi: 'chỗ trống', ex: 'find the number in the blank' },
+      { en: 'group', vi: 'nhóm', ex: 'the 12th group' },
+      { en: 'month', vi: 'tháng', ex: 'How many days are there in March?' },
+      { en: 'non-leap year', vi: 'năm không nhuận', ex: 'February has 28 days in a non-leap year.' },
     ],
     arith: [
       { en: 'sum', vi: 'tổng', ex: 'The sum of 3 and 5 is 8.' },
@@ -45,6 +50,7 @@
       { en: 'percent', vi: 'phần trăm', ex: '25 percent off' },
       { en: 'missing number', vi: 'số còn thiếu', ex: 'Find the missing number.' },
       { en: 'twice', vi: 'gấp đôi', ex: 'twice as many' },
+      { en: 'greater than', vi: 'lớn hơn', ex: 'numbers greater than 700' },
       { en: 'half', vi: 'một nửa', ex: 'half of 10 is 5' },
     ],
     numth: [
@@ -61,6 +67,10 @@
       { en: 'digit sum', vi: 'tổng các chữ số', ex: 'The digit sum of 123 is 6.' },
       { en: 'consecutive', vi: 'liên tiếp', ex: '3 consecutive numbers' },
       { en: 'page', vi: 'trang (sách)', ex: 'number the pages of a book' },
+      { en: 'define', vi: 'định nghĩa', ex: 'Define a new operation.' },
+      { en: 'operation', vi: 'phép toán', ex: 'a ★ b is a new operation' },
+      { en: 'value', vi: 'giá trị', ex: 'Find the value of 5 ★ 8.' },
+      { en: 'divided by', vi: 'chia cho', ex: '17 divided by 5' },
     ],
     geo: [
       { en: 'perimeter', vi: 'chu vi', ex: 'the perimeter of a square' },
@@ -78,6 +88,11 @@
       { en: 'face', vi: 'mặt (của khối)', ex: 'a cube has 6 faces' },
       { en: 'grid', vi: 'lưới ô vuông', ex: 'a 3 × 3 grid' },
       { en: 'figure', vi: 'hình (vẽ)', ex: 'the figure below' },
+      { en: 'pyramid', vi: 'hình chóp', ex: 'a square pyramid' },
+      { en: 'prism', vi: 'hình lăng trụ', ex: 'a triangular prism' },
+      { en: 'vertex / vertices', vi: 'đỉnh / các đỉnh', ex: 'A cube has 8 vertices.' },
+      { en: 'edge', vi: 'cạnh (của khối)', ex: 'A cube has 12 edges.' },
+      { en: 'contain', vi: 'chứa', ex: 'rectangles that contain the ★' },
     ],
     comb: [
       { en: 'ways', vi: 'cách', ex: 'How many ways are there?' },
@@ -91,6 +106,11 @@
       { en: 'same colour', vi: 'cùng màu', ex: 'socks of the same colour' },
       { en: 'form (a number)', vi: 'lập (số)', ex: 'form 2-digit numbers' },
       { en: 'possible', vi: 'có thể', ex: 'all possible numbers' },
+      { en: 'row', vi: 'hàng (ngang)', ex: 'arrange 4 people in a row' },
+      { en: 'next to each other', vi: 'cạnh nhau', ex: 'stand next to each other' },
+      { en: 'give / take', vi: 'cho / lấy (nhận)', ex: 'Lan gives Mai 3 candies.' },
+      { en: 'originally', vi: 'lúc đầu', ex: 'How many did he have originally?' },
+      { en: 'the same number', vi: 'số lượng bằng nhau', ex: 'They have the same number of candies.' },
     ],
   };
   const VOCAB_GROUPS = [
@@ -101,7 +121,62 @@
     { id: 'geo', name: 'Hình học', icon: '📐' },
     { id: 'comb', name: 'Tổ hợp', icon: '🎲' },
   ];
-  const api = { VOCAB, VOCAB_GROUPS };
+  // Từ trong lời văn đề bài (không đưa vào bảng từ vựng, chỉ dùng để chú thích).
+  const GLOSS_EXTRA = [
+    ['calculate quickly', 'tính nhanh', true], ['leg', 'chân'], ['chicken', 'con gà'], ['dog', 'con chó'], ['marble', 'viên bi'], ['candy', 'cái kẹo'], ['candies', 'kẹo', true],
+    ['sock', 'chiếc tất'], ['colour', 'màu'], ['bag', 'túi'], ['tree', 'cây'], ['road', 'con đường'], ['planted', 'được trồng', true],
+    ['shirt', 'áo'], ['trousers', 'quần', true], ['hat', 'mũ'], ['skirt', 'váy'], ['cake', 'cái bánh'], ['flower', 'bông hoa'],
+    ['toy', 'đồ chơi'], ['price', 'giá'], ['reduced', 'được giảm', true], ['thousand dong', 'nghìn đồng', true],
+    ['tournament', 'giải đấu'], ['team', 'đội'], ['ant', 'con kiến'], ['painted', 'được sơn', true], ['cut into', 'cắt thành', true],
+    ['log', 'khúc gỗ'], ['sawn', 'được cưa', true], ['minutes', 'phút', true], ['seconds', 'giây', true], ['tallest', 'cao nhất', true],
+    ['shortest', 'thấp nhất', true], ['second tallest', 'cao thứ nhì', true], ['mother', 'mẹ'], ['older brother', 'anh trai'],
+    ['younger brother', 'em trai'], ['years old', 'tuổi', true], ['shared equally', 'chia đều', true], ['left over', 'còn thừa', true],
+    ['leaves a remainder', 'chia còn dư', true], ['larger', 'lớn hơn', true], ['smaller', 'nhỏ hơn', true], ['added', 'thêm vào', true],
+    ['factors of', 'thừa số', true], ['all different', 'đều khác nhau', true], ['letters', 'chữ cái', true], ['word', 'từ'],
+    ['left end', 'đầu bên trái', true], ['wide', 'rộng', true], ['long', 'dài', true], ['side by side', 'đặt sát cạnh nhau', true],
+    ['including', 'kể cả', true], ['in a row', 'thành một hàng', true], ['today', 'hôm nay', true], ['floor', 'tầng'],
+    ['walk', 'đi bộ', true], ['speed', 'tốc độ', true], ['digits', 'chữ số', true], ['quadrilateral', 'tứ giác', true],
+    ['pentagonal', 'ngũ giác', true], ['hexagonal', 'lục giác', true], ['octagonal', 'bát giác', true], ['triangular', 'tam giác', true],
+  ];
+  // Từ quá cơ bản, không cần chú thích
+  const GLOSS_SKIP = new Set(['how many', 'how much', 'find', 'calculate', 'each', 'next', 'more than', 'possible']);
+
+  const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const GLOSS_ENTRIES = (() => {
+    const list = [];
+    for (const g of Object.keys(VOCAB)) {
+      for (const w of VOCAB[g]) {
+        const alts = w.en.replace(/\s*\(.*?\)/g, '').split(' / ');
+        const vis = w.vi.replace(/\s*\(.*?\)/g, '').split(' / ');
+        alts.forEach((alt, i) => {
+          if (GLOSS_SKIP.has(alt)) return;
+          list.push({ term: alt, vi: vis.length === alts.length ? vis[i] : w.vi, exact: false });
+        });
+      }
+    }
+    for (const [term, vi, exact] of GLOSS_EXTRA) list.push({ term, vi, exact: !!exact });
+    for (const e of list) e.re = new RegExp(`\\b${escapeRe(e.term)}${e.exact ? '' : '(?:s|es)?'}\\b`, 'i');
+    return list.sort((a, b) => b.term.length - a.term.length); // ưu tiên cụm dài trước
+  })();
+
+  /** Tìm các từ cần chú thích trong câu tiếng Anh, theo thứ tự xuất hiện (tối đa `max` từ). */
+  function glossFor(textEn, max = 6) {
+    let plain = String(textEn).replace(/<[^>]+>/g, ' ');
+    const found = [];
+    const seen = new Set();
+    for (const e of GLOSS_ENTRIES) {
+      const m = plain.match(e.re);
+      if (!m) continue;
+      plain = plain.replace(e.re, (x) => ' '.repeat(x.length)); // không chú thích chồng lên nhau
+      const word = m[0].toLowerCase();
+      if (seen.has(word)) continue;
+      seen.add(word);
+      found.push({ en: m[0], vi: e.vi, at: m.index });
+    }
+    return found.sort((a, b) => a.at - b.at).slice(0, max).map(({ en, vi }) => ({ en, vi }));
+  }
+
+  const api = { VOCAB, VOCAB_GROUPS, glossFor };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.TimoVocab = api;
 })(typeof window !== 'undefined' ? window : globalThis);

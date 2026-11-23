@@ -229,7 +229,7 @@ main {
 .pickers { display: flex; gap: 10px; align-items: center; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body[data-lang="vi"] .l-en { display: none; }
-body[data-lang="en"] .l-vi { display: none; }
+body[data-lang="en"] .l-vi, body[data-lang="gloss"] .l-vi { display: none; }
 body[data-lang="bi"] .opt-label .l-vi::before,
 body[data-lang="bi"] .chip .l-vi::before,
 body[data-lang="bi"] .q-num .l-vi::before,
@@ -259,3 +259,17 @@ button.link { background: none; border: 0; padding: 0; color: var(--primary); te
   .brand-long { display: none; }
   .tabbar button span { font-size: 11px; }
 }
+
+/* Tiếng Anh + chú thích từ khó */
+.gloss { display: none; }
+body[data-lang="gloss"] .gloss {
+  display: block; font-size: .82em; color: var(--muted);
+  border-top: 1px dashed var(--border); padding-top: 8px;
+}
+.gloss b { color: var(--text); font-weight: 600; }
+
+/* Dãy hình */
+.groups { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-items: flex-end; }
+.grp { display: grid; justify-items: center; gap: 4px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+.stars { color: #e4572e; text-align: center; line-height: 1.1; font-size: 18px; letter-spacing: 1px; }
+.grp-n { color: var(--muted); font-size: 13px; font-weight: 600; }

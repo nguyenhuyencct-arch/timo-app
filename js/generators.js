@@ -92,6 +92,10 @@
       s += `<line x1="${pad}" y1="${pad + r * cell}" x2="${pad + cols * cell}" y2="${pad + r * cell}" stroke="currentColor" stroke-width="2"/>`;
     for (let c = 0; c <= cols; c++)
       s += `<line x1="${pad + c * cell}" y1="${pad}" x2="${pad + c * cell}" y2="${pad + rows * cell}" stroke="currentColor" stroke-width="2"/>`;
+    if (opts.star) {
+      const [r, c] = opts.star;
+      s += `<text x="${pad + (c - 0.5) * cell}" y="${pad + (r - 0.5) * cell}" font-size="${Math.round(cell * 0.62)}" text-anchor="middle" dominant-baseline="central" fill="#e4572e">★</text>`;
+    }
     if (opts.labels) {
       s += `<circle cx="${pad}" cy="${pad + rows * cell}" r="5" fill="#e4572e"/><text x="${pad - 14}" y="${pad + rows * cell + 14}" font-size="14" fill="currentColor">A</text>`;
       s += `<circle cx="${pad + cols * cell}" cy="${pad}" r="5" fill="#2e86de"/><text x="${pad + cols * cell + 4}" y="${pad - 4}" font-size="14" fill="currentColor">B</text>`;
@@ -808,6 +812,283 @@
     ], ans, [m * n, m + n, ans - 1, ans + 2],
     `Ghi số cách đi đến từng giao điểm: các điểm trên cạnh dưới và cạnh trái đều có 1 cách; mỗi điểm khác bằng tổng số ở điểm bên trái và điểm bên dưới. Điểm B nhận được <b>${ans}</b>.`,
     svgGrid(m, n, { labels: true }));
+  });
+
+  // =====================================================================
+  // DẠNG BỔ SUNG — theo các dạng bài ôn luyện vòng Quốc gia (đề và số liệu tự sinh)
+  // =====================================================================
+  const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]; // năm không nhuận
+  const fact = (n) => (n <= 1 ? 1 : n * fact(n - 1));
+  const distinctDigits = (n) => new Set(String(n)).size === String(n).length;
+  const dayLabels = () => { const l = {}; DAYS.forEach((d, i) => { l[d] = DAYS_EN[i]; }); return l; };
+
+  // Dãy số đan xen (hai dãy xen kẽ nhau)
+  logic.push(function interleaved(g) {
+    const b = band(g);
+    const a0 = rand(1, 10), d1 = b === 1 ? 1 : rand(1, 4);
+    const down = Math.random() < 0.5, d2 = b === 1 ? pick([1, 2]) : rand(2, 6);
+    const b0 = down ? rand(60, 99) : rand(20, 50);
+    const A = (i) => a0 + d1 * i, B = (i) => b0 + (down ? -1 : 1) * d2 * i;
+    const terms = [];
+    for (let i = 0; i < 5; i++) terms.push(A(i), B(i));
+    const shownN = pick([7, 8]);
+    const shown = terms.slice(0, shownN), ans = terms[shownN];
+    const seq = `<b>${shown.join('; ')}; ...</b>`;
+    const oddList = shown.filter((_, i) => i % 2 === 0), evenList = shown.filter((_, i) => i % 2 === 1);
+    return numQ('logic', [
+      `Tìm số tiếp theo của dãy: ${seq}`,
+      `According to the pattern below, find the next number: ${seq}`,
+    ], ans, [shownN % 2 ? A(4) : B(3), ans + 1, ans - 2, shown[shownN - 1] + 1],
+    `Tách thành hai dãy xen kẽ nhau:<br>• Các số ở vị trí lẻ: ${oddList.join('; ')} — mỗi số hơn số trước ${d1}.<br>• Các số ở vị trí chẵn: ${evenList.join('; ')} — mỗi số ${down ? 'kém' : 'hơn'} số trước ${d2}.<br>Số tiếp theo ở vị trí thứ ${shownN + 1} (${shownN % 2 ? 'vị trí chẵn' : 'vị trí lẻ'}) nên là <b>${ans}</b>.`);
+  });
+
+  // Dãy hình: đếm số ★ ở nhóm thứ N
+  logic.push(function figurePattern(g) {
+    const b = band(g);
+    const kind = b === 1 ? 'lin' : b === 2 ? pick(['lin', 'tri']) : pick(['lin', 'tri', 'sq']);
+    const a = rand(1, 3), d = rand(1, 3);
+    const f = { lin: (n) => a + d * (n - 1), tri: (n) => (n * (n + 1)) / 2, sq: (n) => n * n }[kind];
+    const rows = (n) => (kind === 'lin' ? [f(n)] : kind === 'tri' ? Array.from({ length: n }, (_, i) => i + 1) : Array(n).fill(n));
+    const N = b === 1 ? rand(6, 8) : b === 2 ? rand(9, 12) : rand(12, 20);
+    const fig = `<div class="groups">${[1, 2, 3, 4].map((n) => `<div class="grp"><div class="stars">${rows(n).map((r) => `<div>${'★'.repeat(r)}</div>`).join('')}</div><div class="grp-n">(${n})</div></div>`).join('')}</div>`;
+    const counts = [1, 2, 3, 4].map(f).join(', ');
+    const rule = {
+      lin: `mỗi nhóm hơn nhóm trước ${d} dấu ★. Nhóm thứ ${N}: ${a} + ${d} × (${N} − 1) = <b>${f(N)}</b>`,
+      tri: `nhóm thứ n có 1 + 2 + ... + n dấu ★. Nhóm thứ ${N}: 1 + 2 + ... + ${N} = ${N} × ${N + 1} : 2 = <b>${f(N)}</b>`,
+      sq: `nhóm thứ n là hình vuông n × n dấu ★. Nhóm thứ ${N}: ${N} × ${N} = <b>${f(N)}</b>`,
+    }[kind];
+    return numQ('logic', [
+      `Quan sát quy luật các nhóm dưới đây. Hỏi nhóm thứ ${N} có bao nhiêu dấu ★?`,
+      `According to the pattern below, how many ★ are there in the ${ord(N)} group?`,
+    ], f(N), [f(N - 1), f(N + 1), f(N) + 1], `Số dấu ★ ở các nhóm đầu: ${counts}. Quy luật: ${rule}.`, fig);
+  });
+
+  // Ngày, tháng
+  logic.push(function monthsDays(g) {
+    const b = band(g);
+    if (b === 1) {
+      const m = rand(0, 11), days = MONTH_DAYS[m];
+      return numQ('logic', [
+        `Trong một năm không nhuận, tháng ${m + 1} có bao nhiêu ngày?`,
+        `In a non-leap year, how many days are there in ${MONTHS_EN[m]}?`,
+      ], days, [28, 29, 30, 31],
+      `Tháng có 31 ngày: 1, 3, 5, 7, 8, 10, 12. Tháng có 30 ngày: 4, 6, 9, 11. Tháng 2 năm không nhuận có 28 ngày. Vậy tháng ${m + 1} có <b>${days}</b> ngày.`);
+    }
+    const m = rand(0, 10), d1 = rand(1, MONTH_DAYS[m]), wd = rand(0, 6), d2 = rand(1, MONTH_DAYS[m + 1]);
+    const N = MONTH_DAYS[m] - d1 + d2, ai = (wd + N) % 7;
+    return strQ('logic', [
+      `Trong một năm không nhuận, ngày ${d1} tháng ${m + 1} là <b>${DAYS[wd]}</b>. Hỏi ngày ${d2} tháng ${m + 2} năm đó là thứ mấy?`,
+      `In a non-leap year, ${MONTHS_EN[m]} ${d1} is a <b>${DAYS_EN[wd]}</b>. What day of the week is ${MONTHS_EN[m + 1]} ${d2} of the same year?`,
+    ], DAYS[ai], DAYS,
+    `Tháng ${m + 1} có ${MONTH_DAYS[m]} ngày. Từ ngày ${d1}/${m + 1} đến ngày ${d2}/${m + 2} cách nhau ${MONTH_DAYS[m]} − ${d1} + ${d2} = ${N} ngày. ${N} = 7 × ${Math.floor(N / 7)} + ${N % 7}, nên từ ${DAYS[wd]} đếm thêm ${N % 7} ngày được <b>${DAYS[ai]}</b> (${DAYS_EN[ai]}).`, dayLabels());
+  });
+
+  // Ký hiệu phép toán mới
+  numth.push(function newOperation(g) {
+    const b = band(g);
+    const s = pick(['⊗', '★', '#', '◇', '⊕']);
+    const k1 = rand(1, 3), k2 = rand(1, 3), k3 = rand(1, 9), m1 = rand(2, 4), m2 = rand(2, 4);
+    const T = b === 1 ? [
+      { def: `a + b + ${k3}`, f: (x, y) => x + y + k3, sub: (x, y) => `${x} + ${y} + ${k3}` },
+      { def: 'a + a + b', f: (x, y) => x + x + y, sub: (x, y) => `${x} + ${x} + ${y}` },
+      { def: `a + b − ${k2}`, f: (x, y) => x + y - k2, sub: (x, y) => `${x} + ${y} − ${k2}`, ok: (x, y) => x + y > k2 },
+    ] : [
+      { def: 'a × b + a + b', f: (x, y) => x * y + x + y, sub: (x, y) => `${x} × ${y} + ${x} + ${y}` },
+      { def: `(a + ${k1}) × (b − ${k2}) + ${k3}`, f: (x, y) => (x + k1) * (y - k2) + k3, sub: (x, y) => `(${x} + ${k1}) × (${y} − ${k2}) + ${k3}`, ok: (x, y) => y > k2 },
+      { def: `a × ${m1} + b × ${m2}`, f: (x, y) => x * m1 + y * m2, sub: (x, y) => `${x} × ${m1} + ${y} × ${m2}` },
+      { def: `a × b − a + ${k3}`, f: (x, y) => x * y - x + k3, sub: (x, y) => `${x} × ${y} − ${x} + ${k3}` },
+    ];
+    for (;;) {
+      const t = pick(T), ok = t.ok || (() => true);
+      const lo = b === 1 ? 1 : 2, hi = b === 1 ? 9 : b === 2 ? 12 : 6;
+      const x = rand(lo, hi), y = rand(lo, hi);
+      const def = `<b>a ${s} b = ${t.def}</b>`;
+      if (b < 3 || Math.random() < 0.3) {
+        if (!ok(x, y)) continue;
+        const ans = t.f(x, y), expr = `<b>${x} ${s} ${y}</b>`;
+        return numQ('numth', [
+          `Định nghĩa phép toán mới: ${def}. Tính ${expr}.`,
+          `Define a new operation: ${def}. Find the value of ${expr}.`,
+        ], ans, [ans + 1, x + y, x * y, t.f(y, x)],
+        `Thay a = ${x}, b = ${y} vào định nghĩa: ${x} ${s} ${y} = ${t.sub(x, y)} = <b>${ans}</b>.`);
+      }
+      const z = rand(lo, hi);
+      if (!ok(y, z)) continue;
+      const inner = t.f(y, z);
+      if (!ok(x, inner) || inner > 60) continue;
+      const ans = t.f(x, inner), expr = `<b>${x} ${s} (${y} ${s} ${z})</b>`;
+      return numQ('numth', [
+        `Định nghĩa phép toán mới: ${def}. Tính ${expr}.`,
+        `Define a new operation: ${def}. Find the value of ${expr}.`,
+      ], ans, [inner, ans + 1, t.f(inner, x), ans - 2],
+      `Tính trong ngoặc trước: ${y} ${s} ${z} = ${t.sub(y, z)} = ${inner}.<br>Sau đó: ${x} ${s} ${inner} = ${t.sub(x, inner)} = <b>${ans}</b>.`);
+    }
+  });
+
+  // Số lớn nhất / nhỏ nhất có 2–3 chữ số chia hết cho …
+  numth.push(function extremeDivisible(g) {
+    const b = band(g);
+    const digits = b === 1 ? 2 : 3, lo = 10 ** (digits - 1), hi = 10 ** digits - 1;
+    let k, cond;
+    if (b === 3 && Math.random() < 0.6) {
+      let p, q;
+      do { p = rand(2, 9); q = rand(2, 9); } while (p === q || p % q === 0 || q % p === 0);
+      k = lcm(p, q);
+      cond = [`chia hết cho cả ${p} và ${q}`, `divisible by both ${p} and ${q}`, `Số chia hết cho cả ${p} và ${q} thì chia hết cho BCNN(${p}, ${q}) = ${k}. `];
+    } else {
+      k = b === 1 ? rand(3, 9) : rand(6, 19);
+      cond = [`chia hết cho ${k}`, `divisible by ${k}`, ''];
+    }
+    const largest = Math.random() < 0.5;
+    const ans = largest ? hi - (hi % k) : lo % k === 0 ? lo : lo + k - (lo % k);
+    const w = NUM_WORD[digits];
+    const how = largest
+      ? `Số lớn nhất có ${w[0]} chữ số là ${hi}. ${hi} : ${k} = ${Math.floor(hi / k)} (dư ${hi % k}), nên số cần tìm là ${hi} − ${hi % k} = <b>${ans}</b>.`
+      : lo % k === 0
+        ? `Số nhỏ nhất có ${w[0]} chữ số là ${lo}, và ${lo} chia hết cho ${k}. Vậy số cần tìm là <b>${lo}</b>.`
+        : `Số nhỏ nhất có ${w[0]} chữ số là ${lo}. ${lo} : ${k} = ${Math.floor(lo / k)} (dư ${lo % k}), nên số cần tìm là ${lo} + (${k} − ${lo % k}) = <b>${ans}</b>.`;
+    return numQ('numth', [
+      `Tìm số ${largest ? 'lớn nhất' : 'nhỏ nhất'} có ${w[0]} chữ số ${cond[0]}.`,
+      `Find the ${largest ? 'largest' : 'smallest'} ${digits}-digit number ${cond[1]}.`,
+    ], ans, [largest ? ans - k : ans + k, largest ? hi : lo, ans + 1, ans - 1], cond[2] + how);
+  });
+
+  // Hình khối: hình lập phương, hình chóp, hình lăng trụ
+  geo.push(function solidsCount(g) {
+    const b = band(g);
+    const what = pick(['v', 'e', 'f']);
+    const W = { v: ['đỉnh', 'vertices'], e: ['cạnh', 'edges'], f: ['mặt', 'faces'] }[what];
+    if (b === 1) {
+      const val = { v: 8, e: 12, f: 6 }[what];
+      return numQ('geo', [`Hình lập phương có bao nhiêu ${W[0]}?`, `How many ${W[1]} does a cube have?`], val, [6, 8, 12, 4],
+        `Hình lập phương có 8 đỉnh, 12 cạnh và 6 mặt. Vậy có <b>${val}</b> ${W[0]}.`);
+    }
+    const BASE = { 3: ['tam giác', 'triangular'], 4: ['tứ giác', 'quadrilateral'], 5: ['ngũ giác', 'pentagonal'], 6: ['lục giác', 'hexagonal'], 8: ['bát giác', 'octagonal'] };
+    const n = pick([3, 4, 5, 6, 8]);
+    const pyr = { v: n + 1, e: 2 * n, f: n + 1 }, pri = { v: 2 * n, e: 3 * n, f: n + 2 };
+    if (b === 3 && what !== 'e' && Math.random() < 0.5) {
+      const E = 3 * n;
+      return numQ('geo', [
+        `Một hình lăng trụ có ${E} cạnh. Hỏi hình lăng trụ đó có bao nhiêu ${W[0]}?`,
+        `A prism has ${E} edges. How many ${W[1]} does it have?`,
+      ], pri[what], [pyr[what], E, n, 2 * n + 2].filter((v) => v !== pri[what]),
+      `Đáy của hình lăng trụ là đa giác n cạnh thì hình lăng trụ có 3 × n cạnh. ${E} : 3 = ${n}, nên đáy có ${n} cạnh.<br>Hình lăng trụ đó có ${2 * n} đỉnh, ${3 * n} cạnh, ${n + 2} mặt. Đáp án: <b>${pri[what]}</b>.`);
+    }
+    const isPyr = Math.random() < 0.5, val = (isPyr ? pyr : pri)[what];
+    return numQ('geo', [
+      `Hình ${isPyr ? 'chóp' : 'lăng trụ'} ${BASE[n][0]} (đáy là hình ${BASE[n][0]}) có bao nhiêu ${W[0]}?`,
+      `How many ${W[1]} does ${/^[aeiou]/.test(BASE[n][1]) ? 'an' : 'a'} ${BASE[n][1]} ${isPyr ? 'pyramid' : 'prism'} have?`,
+    ], val, [(isPyr ? pri : pyr)[what], n, val + 1, val - 1],
+    isPyr
+      ? `Hình chóp có đáy ${n} cạnh: ${n} đỉnh ở đáy + 1 đỉnh trên cùng = ${n + 1} đỉnh; ${n} cạnh đáy + ${n} cạnh bên = ${2 * n} cạnh; 1 mặt đáy + ${n} mặt bên = ${n + 1} mặt. Đáp án: <b>${val}</b>.`
+      : `Hình lăng trụ có 2 đáy, mỗi đáy ${n} cạnh: ${n} × 2 = ${2 * n} đỉnh; ${n} × 2 cạnh đáy + ${n} cạnh bên = ${3 * n} cạnh; 2 mặt đáy + ${n} mặt bên = ${n + 2} mặt. Đáp án: <b>${val}</b>.`);
+  });
+
+  // Đếm hình chữ nhật chứa dấu ★
+  geo.push(function rectWithStar(g) {
+    const b = band(g);
+    const m = b === 1 ? 1 : b === 2 ? rand(1, 2) : rand(2, 3), n = b === 1 ? rand(3, 5) : rand(3, 4);
+    const r = rand(1, m), c = rand(1, n);
+    const ans = r * (m - r + 1) * c * (n - c + 1);
+    const explain = m === 1
+      ? `Hình chữ nhật chứa ★ có cạnh trái là 1 trong ${c} đường dọc bên trái ô ★ và cạnh phải là 1 trong ${n - c + 1} đường dọc bên phải ô ★. Số hình: ${c} × ${n - c + 1} = <b>${ans}</b>.`
+      : `Cạnh trái: ${c} cách, cạnh phải: ${n - c + 1} cách (đường dọc ở hai bên ô ★). Cạnh trên: ${r} cách, cạnh dưới: ${m - r + 1} cách. Số hình: ${c} × ${n - c + 1} × ${r} × ${m - r + 1} = <b>${ans}</b>.`;
+    return numQ('geo', [
+      `Trong hình dưới đây, có bao nhiêu hình chữ nhật (kể cả hình vuông) chứa dấu ★?`,
+      `How many rectangles (including squares) in the figure below contain the ★?`,
+    ], ans, [C2(m + 1) * C2(n + 1), ans - 1, ans + 1, m * n], explain, svgGrid(m, n, { star: [r, c] }));
+  });
+
+  // Xếp hàng (hoán vị)
+  comb.push(function arrangements(g) {
+    const b = band(g);
+    if (b === 2 && Math.random() < 0.4) {
+      const word = pick(['MATH', 'TIMO', 'KING', 'LUCKY', 'WORLD']), n = word.length;
+      return numQ('comb', [
+        `Có bao nhiêu cách sắp xếp các chữ cái của từ <b>${word}</b> (mỗi chữ cái dùng đúng một lần)?`,
+        `How many ways are there to arrange the letters in the word <b>${word}</b>?`,
+      ], fact(n), [fact(n - 1), n * n, n * (n - 1), 2 * fact(n - 1)],
+      `Vị trí đầu có ${n} cách chọn chữ cái, vị trí thứ hai còn ${n - 1} cách, ... Số cách: ${Array.from({ length: n }, (_, i) => n - i).join(' × ')} = <b>${fact(n)}</b>.`);
+    }
+    const n = b === 1 ? 3 : b === 2 ? rand(4, 5) : rand(4, 6);
+    const ppl = shuffle(NAMES).slice(0, n), list = ppl.join(', ');
+    const chain = Array.from({ length: n }, (_, i) => n - i).join(' × ');
+    if (b === 3) {
+      if (Math.random() < 0.5) {
+        const ans = fact(n - 1);
+        return numQ('comb', [
+          `Có bao nhiêu cách xếp ${n} bạn ${list} thành một hàng ngang sao cho ${ppl[0]} luôn đứng ở đầu bên trái?`,
+          `How many ways are there to arrange ${list} in a row so that ${ppl[0]} is always at the left end?`,
+        ], ans, [fact(n), n * (n - 1), 2 * ans, ans - 1],
+        `${ppl[0]} cố định ở đầu trái, chỉ cần xếp ${n - 1} bạn còn lại: ${Array.from({ length: n - 1 }, (_, i) => n - 1 - i).join(' × ')} = <b>${ans}</b> cách.`);
+      }
+      const ans = 2 * fact(n - 1);
+      return numQ('comb', [
+        `Có bao nhiêu cách xếp ${n} bạn ${list} thành một hàng ngang sao cho ${ppl[0]} và ${ppl[1]} luôn đứng cạnh nhau?`,
+        `How many ways are there to arrange ${list} in a row so that ${ppl[0]} and ${ppl[1]} always stand next to each other?`,
+      ], ans, [fact(n - 1), fact(n), fact(n) - ans, ans + 2],
+      `Coi ${ppl[0]} và ${ppl[1]} là một "khối", ta xếp ${n - 1} phần tử: ${fact(n - 1)} cách. Trong khối, hai bạn đổi chỗ được 2 cách. Số cách: ${fact(n - 1)} × 2 = <b>${ans}</b>.`);
+    }
+    return numQ('comb', [
+      `Có bao nhiêu cách xếp ${n} bạn ${list} thành một hàng ngang?`,
+      `How many ways are there to arrange ${list} in a row from left to right?`,
+    ], fact(n), [n, n * (n - 1), fact(n) - 1, n * n],
+    `Vị trí thứ nhất có ${n} cách chọn, vị trí thứ hai còn ${n - 1} cách, ... Số cách: ${chain} = <b>${fact(n)}</b>.`);
+  });
+
+  // Bài toán Cho và Nhận
+  comb.push(function giveTake(g) {
+    const b = band(g);
+    const [X, Y, Z] = shuffle(NAMES);
+    if (b === 1) {
+      const a = rand(2, 9);
+      return numQ('comb', [
+        `${X} cho ${Y} ${a} cái kẹo thì hai bạn có số kẹo bằng nhau. Hỏi lúc đầu ${X} có nhiều hơn ${Y} bao nhiêu cái kẹo?`,
+        `After ${X} gives ${Y} ${a} candies, they have the same number of candies. How many more candies did ${X} have than ${Y} originally?`,
+      ], 2 * a, [a, a + 1, 2 * a + 1],
+      `Khi cho đi ${a} cái, ${X} bớt ${a} cái và ${Y} được thêm ${a} cái. Để bằng nhau thì lúc đầu ${X} phải nhiều hơn ${Y}: ${a} + ${a} = <b>${2 * a}</b> cái.`);
+    }
+    if (b === 2 || Math.random() < 0.5) {
+      const a = rand(3, 12), t = rand(1, 2 * a - 1), ans = 2 * a - t;
+      return numQ('comb', [
+        `Sau khi ${X} cho ${Y} ${a} cái kẹo và lấy của ${Z} ${t} cái kẹo thì ${X} và ${Y} có số kẹo bằng nhau. Hỏi lúc đầu ${X} có nhiều hơn ${Y} bao nhiêu cái kẹo?`,
+        `After ${X} gives ${Y} ${a} candies and takes ${t} candies from ${Z}, ${X} and ${Y} have the same number of candies. How many more candies did ${X} have than ${Y} originally?`,
+      ], ans, [2 * a + t, a - t > 0 ? a - t : a + t, 2 * a, a + t],
+      `Gọi số kẹo lúc sau của ${X} và ${Y} là S (bằng nhau).<br>Lúc đầu ${Y} có S − ${a} (vì ${Y} được thêm ${a}).<br>Lúc đầu ${X} có S + ${a} − ${t} (vì ${X} cho đi ${a} và nhận thêm ${t}).<br>Hiệu: (S + ${a} − ${t}) − (S − ${a}) = ${a} + ${a} − ${t} = <b>${ans}</b>.`);
+    }
+    const k = rand(2, 4), after = rand(5, 25), x = rand(3, k * after - 1);
+    const R = after + x, A = k * after - x, T = R + A;
+    return numQ('comb', [
+      `${X} có ${R} cái kẹo, ${Y} có ${A} cái kẹo. ${X} phải cho ${Y} bao nhiêu cái kẹo để số kẹo của ${Y} gấp ${k} lần số kẹo của ${X}?`,
+      `${X} has ${R} candies and ${Y} has ${A} candies. How many candies must ${X} give ${Y} so that ${Y} has ${k} times as many candies as ${X}?`,
+    ], x, [after, R - A, k * after, x + k],
+    `Tổng số kẹo không đổi: ${R} + ${A} = ${T}. Lúc sau ${X} có 1 phần, ${Y} có ${k} phần, tổng ${k + 1} phần. ${X} còn ${T} : ${k + 1} = ${after} cái. Vậy ${X} phải cho ${R} − ${after} = <b>${x}</b> cái.`);
+  });
+
+  // Đếm số có các chữ số khác nhau lớn hơn / nhỏ hơn một số cho trước
+  comb.push(function countRange(g) {
+    const b = band(g);
+    const digits = b === 1 ? 2 : 3, lo = 10 ** (digits - 1), hi = 10 ** digits - 1;
+    const N = b === 1 ? rand(4, 8) * 10 + rand(0, 9) : b === 2 ? rand(2, 8) * 100 : rand(2, 8) * 100 + rand(11, 89);
+    const greater = Math.random() < 0.5;
+    const byLead = {};
+    let ans = 0;
+    for (let i = lo; i <= hi; i++) {
+      if (!distinctDigits(i) || (greater ? i <= N : i >= N)) continue;
+      ans++;
+      const lead = String(i)[0];
+      byLead[lead] = (byLead[lead] || 0) + 1;
+    }
+    const place = digits === 2 ? 'hàng chục' : 'hàng trăm', w = NUM_WORD[digits];
+    const parts = Object.entries(byLead).map(([d, c]) => `${place} là ${d}: ${c} số`).join('; ');
+    let all = 0;
+    for (let i = lo; i <= hi; i++) if (greater ? i > N : i < N) all++;
+    return numQ('comb', [
+      `Có bao nhiêu số có ${w[0]} chữ số khác nhau và ${greater ? 'lớn hơn' : 'nhỏ hơn'} ${N}?`,
+      `How many ${digits}-digit numbers ${greater ? 'greater' : 'less'} than ${N} have all different digits?`,
+    ], ans, [all, ans + 9, ans - 8, ans + 1],
+    `Chia trường hợp theo chữ số ${place} (các chữ số phải khác nhau): ${parts}. Tổng cộng: <b>${ans}</b> số.`);
   });
 
   // =====================================================================

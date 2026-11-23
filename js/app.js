@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const { TOPICS, generateSet, generateExam } = window.TimoGen;
-  const { VOCAB, VOCAB_GROUPS } = window.TimoVocab;
+  const { VOCAB, VOCAB_GROUPS, glossFor } = window.TimoVocab;
   const $app = document.getElementById('app');
   const $grade = document.getElementById('grade');
   const $lang = document.getElementById('lang');
@@ -25,11 +25,11 @@
   $grade.value = grade;
   $grade.addEventListener('change', () => { grade = +$grade.value; store.set('grade', grade); go('home'); });
 
-  // Ngôn ngữ đề: 'vi' | 'bi' (song ngữ, như đề TIMO tại Việt Nam) | 'en'.
+  // Ngôn ngữ đề: 'vi' | 'bi' (song ngữ, như đề TIMO tại Việt Nam) | 'gloss' (tiếng Anh + chú thích từ khó) | 'en'.
   // Câu hỏi luôn được vẽ đủ cả hai bản; CSS ẩn/hiện theo body[data-lang] nên đổi giữa chừng không mất bài.
   let lang = store.get('lang', 'bi');
   function setLang(v) {
-    lang = ['vi', 'bi', 'en'].includes(v) ? v : 'bi';
+    lang = ['vi', 'bi', 'gloss', 'en'].includes(v) ? v : 'bi';
     $lang.value = lang;
     document.body.dataset.lang = lang;
     store.set('lang', lang);
@@ -184,7 +184,11 @@
       </article>`;
   }
 
-  const qText = (q) => `<div class="q-text q-dual"><div class="l-en">${q.textEn}</div><div class="l-vi">${q.text}</div></div>`;
+  function glossLine(q) {
+    const g = glossFor(q.textEn);
+    return g.length ? `<div class="gloss">${g.map((w) => `<span><b>${w.en}</b>: ${w.vi}</span>`).join('; ')}.</div>` : '';
+  }
+  const qText = (q) => `<div class="q-text q-dual"><div class="l-en">${q.textEn}</div>${glossLine(q)}<div class="l-vi">${q.text}</div></div>`;
 
   // ---------- Thi thử ----------
   function examIntro() {
@@ -443,7 +447,8 @@
         <p>Điểm thi chỉ tính đáp án Toán, nhưng quen đọc đề tiếng Anh giúp em đọc nhanh hơn và tự tin khi thi các vòng cao. Gợi ý:</p>
         <ul>
           <li>Chọn <b>Song ngữ</b> ở góc trên để đề hiện cả tiếng Anh và tiếng Việt, giống đề thi thật.</li>
-          <li>Khi đã quen, thử chế độ <b>English</b> và chỉ xem bản tiếng Việt khi cần.</li>
+          <li>Khi đã quen, chuyển sang <b>Anh + chú thích</b>: đề tiếng Anh, bên dưới chỉ giải nghĩa từ khó (giống cách trình bày của nhiều bộ tài liệu ôn thi).</li>
+          <li>Cuối cùng thử chế độ <b>English</b>, chỉ có tiếng Anh như vòng thi quốc tế.</li>
           <li>Học <button class="link" data-go="vocab">từ vựng Toán tiếng Anh</button> theo từng chủ đề và chơi trò đố từ.</li>
         </ul>
         <p class="hint">Thông tin về cấu trúc và thể thức thi có thể thay đổi theo từng năm. Phụ huynh nên xem thông báo chính thức của Ban tổ chức. Mức huy chương trong ứng dụng chỉ mang tính tham khảo.</p>
