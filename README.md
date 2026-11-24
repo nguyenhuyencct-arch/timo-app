@@ -21,17 +21,20 @@ Chạy hoàn toàn trên trình duyệt, không cần cài đặt hay máy chủ
 
 > Thể thức thi có thể thay đổi theo năm — hãy xem thông báo chính thức của Ban tổ chức. Mức huy chương trong app chỉ mang tính tham khảo.
 
-## Tính năng
+## Cấu trúc ứng dụng
 
-- **Song ngữ Anh – Việt** như đề thi TIMO tại Việt Nam: chọn *Tiếng Việt*, *Song ngữ* (mặc định — tiếng Anh in trước, tiếng Việt in nghiêng bên dưới), *Anh + chú thích* (đề tiếng Anh, bên dưới tự động giải nghĩa từ khó) hoặc *English*. Đổi giữa chừng không mất bài đang làm. Lời giải luôn bằng tiếng Việt.
-- **Từ vựng Toán tiếng Anh**: gần 80 từ theo 5 chủ đề và nhóm từ hay gặp trong câu hỏi (how many, at least, remainder, perimeter…), có ví dụ và trò đố 10 câu.
-- **Chọn lớp 1–6**: độ khó tự điều chỉnh (lớp 1–2 · 3–4 · 5–6).
-- **Luyện theo chủ đề**: 10 câu/lượt, chấm ngay, có **lời giải chi tiết** từng bước.
-- **Luyện tổng hợp**: 10 câu trộn đều 5 chủ đề.
-- **Thi thử**: 25 câu (5 câu/chủ đề), đồng hồ 60 phút, chuyển qua lại giữa các câu, chấm điểm /100, phân tích theo chủ đề và xem lại lời giải.
-- **Kết quả**: tỉ lệ đúng theo chủ đề và lịch sử thi thử (lưu trên trình duyệt).
-- **Câu hỏi sinh tự động không giới hạn**: mỗi dạng toán sinh số liệu ngẫu nhiên, đáp án được máy tính toán (nhiều dạng dùng duyệt vét cạn) nên luôn chính xác.
-- Giao diện thân thiện với trẻ em, dùng tốt trên điện thoại, hỗ trợ chế độ tối.
+1. **Chọn lớp lúc mở app lần đầu** (popup, lớp 1–6) kèm chọn cách hiển thị đề; đổi lớp bất cứ lúc nào bằng nút *Lớp ▾* — tiến độ từng lớp được giữ riêng.
+2. **🗺️ Lộ trình** — 25–34 chuyên đề tùy lớp, chia theo 5 chủ đề TIMO. Mỗi chuyên đề: *Phương pháp* → *Ví dụ mẫu có lời giải* → *Luyện 5 câu*. Đúng ≥ 3/5 câu để qua và mở chuyên đề kế tiếp (1–3 sao). Nút *Học tiếp* gợi ý chuyên đề nên học, xoay vòng giữa các chủ đề.
+3. **🔁 Ôn tập** — *Ôn câu sai* (mọi câu làm sai được lưu; làm đúng thì xóa khỏi danh sách), *Luyện tổng hợp* từ các chuyên đề đã học, *Ôn theo chủ đề*.
+4. **📝 Thi** — *10 bộ đề cố định* mỗi lớp (làm lại vẫn đúng đề đó, lưu điểm cao nhất) và *Đề ngẫu nhiên* không giới hạn. Đề 25 câu (5 câu/chủ đề), 60 phút, chấm /100, phân tích theo chủ đề, xem lại lời giải.
+5. **📖 Từ vựng** — từ vựng Toán tiếng Anh theo chủ đề + đố từ.
+6. **👤 Tôi** — hồ sơ, tổng quan tiến độ, tỉ lệ đúng theo chủ đề, lịch sử thi, giới thiệu TIMO.
+
+## Tính năng khác
+
+- **4 cách hiển thị đề**: *Tiếng Việt*, *Song ngữ* (như đề TIMO tại Việt Nam), *Anh + chú thích* (đề tiếng Anh, tự giải nghĩa từ khó) và *English*. Lời giải luôn bằng tiếng Việt.
+- **Câu hỏi sinh tự động** theo 34 dạng toán, số liệu ngẫu nhiên, đáp án do máy tính toán nên luôn chính xác.
+- Dùng tốt trên điện thoại, hỗ trợ chế độ tối; dữ liệu lưu trên trình duyệt.
 
 ## Cách dùng
 
@@ -61,9 +64,10 @@ node tests/generators.test.js
 index.html             Khung giao diện
 css/styles.css         Giao diện
 js/generators.js       Bộ sinh câu hỏi song ngữ theo 5 chủ đề TIMO (dùng được cả trong Node)
-js/vocab.js            Từ vựng Toán tiếng Anh theo chủ đề
+js/vocab.js            Từ vựng Toán tiếng Anh theo chủ đề + chú thích từ khó
+js/curriculum.js       Lộ trình: danh sách chuyên đề, phương pháp, lớp phù hợp
 scripts/build-single.js  Đóng gói thành một file HTML (dist/timo.html)
-js/app.js              Luồng màn hình: trang chủ, luyện tập, thi thử, kết quả, giới thiệu
+js/app.js              Giao diện: chọn lớp, lộ trình, ôn tập, thi, từ vựng, hồ sơ
 tests/                 Kiểm thử tự động cho bộ sinh câu hỏi
 ```
 

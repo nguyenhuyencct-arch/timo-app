@@ -123,7 +123,7 @@
   ];
   // Từ trong lời văn đề bài (không đưa vào bảng từ vựng, chỉ dùng để chú thích).
   const GLOSS_EXTRA = [
-    ['calculate quickly', 'tính nhanh', true], ['leg', 'chân'], ['chicken', 'con gà'], ['dog', 'con chó'], ['marble', 'viên bi'], ['candy', 'cái kẹo'], ['candies', 'kẹo', true],
+    ['calculate quickly', 'tính nhanh', true], ['line segment', 'đoạn thẳng'], ['point', 'điểm'], ['straight line', 'đường thẳng'], ['joining', 'nối', true], ['card', 'tấm thiệp'], ['sends', 'gửi', true], ['leg', 'chân'], ['chicken', 'con gà'], ['dog', 'con chó'], ['marble', 'viên bi'], ['candy', 'cái kẹo'], ['candies', 'kẹo', true],
     ['sock', 'chiếc tất'], ['colour', 'màu'], ['bag', 'túi'], ['tree', 'cây'], ['road', 'con đường'], ['planted', 'được trồng', true],
     ['shirt', 'áo'], ['trousers', 'quần', true], ['hat', 'mũ'], ['skirt', 'váy'], ['cake', 'cái bánh'], ['flower', 'bông hoa'],
     ['toy', 'đồ chơi'], ['price', 'giá'], ['reduced', 'được giảm', true], ['thousand dong', 'nghìn đồng', true],

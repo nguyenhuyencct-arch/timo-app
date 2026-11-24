@@ -39,4 +39,30 @@ for (const topic of Object.keys(VOCAB)) {
     seen.add(w.en.toLowerCase());
   }
 }
+// Lộ trình
+const { LESSONS, lessonsFor, allowedFor } = require('../js/curriculum.js');
+const { GENS, generateFrom } = require('../js/generators.js');
+const allGens = new Set(Object.keys(GENS));
+for (const l of LESSONS) assert.ok(GENS[l.gen] && GENS[l.gen].topic === l.topic, 'chuyên đề trỏ sai dạng: ' + l.id);
+assert.strictEqual(new Set(LESSONS.map((l) => l.id)).size, LESSONS.length, 'trùng chuyên đề');
+for (const name of allGens) assert.ok(LESSONS.some((l) => l.gen === name), 'dạng chưa có trong lộ trình: ' + name);
+for (let g = 1; g <= 6; g++) {
+  const allowed = allowedFor(g);
+  for (const t of TOPICS) assert.ok((allowed[t.id] || []).length >= 3, `lớp ${g} chủ đề ${t.id} quá ít chuyên đề`);
+  for (const l of lessonsFor(g)) {
+    assert.ok(l.title(g) && l.tip, 'thiếu tên/phương pháp ' + l.id);
+    assert.strictEqual(generateFrom([l.gen], g, 5).length, 5, `không sinh đủ 5 câu: ${l.id} lớp ${g}`);
+    const variety = new Set();
+    for (let i = 0; i < 300; i++) { const q = GENS[l.gen].fn(g); variety.add(q.text + (q.svg || '')); }
+    assert.ok(variety.size >= 5, `chuyên đề ${l.id} lớp ${g} quá ít biến thể (${variety.size})`);
+  }
+  // Bộ đề cố định: cùng seed → cùng đề; khác seed → khác đề
+  const a = generateExam(g, allowed, 1234).map((q) => q.text).join('|');
+  const b = generateExam(g, allowed, 1234).map((q) => q.text).join('|');
+  const c = generateExam(g, allowed, 999).map((q) => q.text).join('|');
+  assert.strictEqual(a, b, 'bộ đề cố định không ổn định ở lớp ' + g);
+  assert.notStrictEqual(a, c, 'hai bộ đề khác nhau lại trùng ở lớp ' + g);
+  assert.strictEqual(generateExam(g, allowed, 1234).length, 25);
+}
+console.log(`Lộ trình: ${LESSONS.length} chuyên đề; số chuyên đề theo lớp: ${[1,2,3,4,5,6].map((g) => lessonsFor(g).length).join(', ')}`);
 console.log(`OK — đã kiểm tra ${count} câu hỏi và ${seen.size} từ vựng`);

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Luyện Toán TIMO Tiểu học</title>
-  <meta name="description" content="Ứng dụng luyện thi Toán TIMO cho học sinh tiểu học lớp 1–6: luyện theo 5 chủ đề và thi thử 25 câu.">
+  <meta name="description" content="Ứng dụng luyện thi Toán TIMO cho học sinh tiểu học lớp 1–6: lộ trình chuyên đề theo lớp, ôn tập câu sai, thi theo bộ đề và đề ngẫu nhiên.">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -22,27 +22,23 @@
         <option value="en">English</option>
       </select>
     </label>
-    <label class="grade-pick">Lớp
-      <select id="grade">
-        <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-        <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-      </select>
-    </label>
+    <button class="grade-btn" id="grade-btn" aria-label="Đổi lớp">Lớp</button>
     </div>
   </header>
 
   <main id="app"></main>
 
   <nav class="tabbar">
-    <button data-go="home">🏠<span>Trang chủ</span></button>
-    <button data-go="exam-intro">📝<span>Thi thử</span></button>
-    <button data-go="stats">📊<span>Kết quả</span></button>
+    <button data-go="path">🗺️<span>Lộ trình</span></button>
+    <button data-go="review">🔁<span>Ôn tập</span></button>
+    <button data-go="exams">📝<span>Thi</span></button>
     <button data-go="vocab">📖<span>Từ vựng</span></button>
-    <button data-go="about">ℹ️<span>TIMO là gì?</span></button>
+    <button data-go="me">👤<span>Tôi</span></button>
   </nav>
 
   <script src="js/generators.js"></script>
   <script src="js/vocab.js"></script>
+  <script src="js/curriculum.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
