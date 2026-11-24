@@ -44,9 +44,12 @@
   // 'vi' | 'bi' (song ngữ) | 'gloss' (tiếng Anh + chú thích từ khó) | 'en'.
   // Câu hỏi luôn được vẽ đủ cả hai bản; CSS ẩn/hiện theo body[data-lang] nên đổi giữa chừng không mất bài.
   const LANGS = [['vi', 'Tiếng Việt'], ['bi', 'Song ngữ'], ['gloss', 'Anh + chú thích'], ['en', 'English']];
-  let lang = store.get('lang', 'bi');
+  // Mặc định: tiếng Anh + chú thích từ khó (giống cách trình bày của tài liệu ôn thi).
+  // Chuyển một lần cho người dùng cũ đang để mặc định cũ.
+  if (!store.get('langV2', false)) { store.set('lang', 'gloss'); store.set('langV2', true); }
+  let lang = store.get('lang', 'gloss');
   function setLang(v) {
-    lang = LANGS.some((l) => l[0] === v) ? v : 'bi';
+    lang = LANGS.some((l) => l[0] === v) ? v : 'gloss';
     $lang.value = lang;
     document.body.dataset.lang = lang;
     store.set('lang', lang);
@@ -58,9 +61,11 @@
   const optLabel = (q, o) => dual(o, q.optLabels && q.optLabels[o]);
   function glossLine(q) {
     const g = glossFor(q.textEn);
-    return g.length ? `<div class="gloss">${g.map((w) => `<span><b>${w.en}</b>: ${w.vi}</span>`).join('; ')}.</div>` : '';
+    const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+    return g.length ? `<div class="gloss">${g.map((w) => `${cap(w.en)}: ${cap(w.vi)}`).join('; ')}.</div>` : '';
   }
-  const qText = (q) => `<div class="q-text q-dual"><div class="l-en">${q.textEn}</div>${glossLine(q)}<div class="l-vi">${q.text}</div></div>`;
+  /** Đề bài; num (nếu có) hiện thành nhãn "Bài N." ở đầu câu trong chế độ Anh + chú thích. */
+  const qText = (q, num) => `<div class="q-text q-dual"><div class="l-en">${num ? `<b class="q-label">Bài ${num}.</b> ` : ''}${q.textEn}</div>${glossLine(q)}<div class="l-vi">${q.text}</div></div>`;
   const starStr = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
 
   // ---------- Kết quả & câu sai ----------
@@ -186,7 +191,7 @@
     return `
       <article class="card question">
         <div class="q-head"><span class="chip chip-${q.topic}">${t.icon} ${dual(t.name, t.en)}</span><span class="q-num">${dual(`Câu ${num}`, `Question ${num}`)}</span></div>
-        ${qText(q)}
+        ${qText(q, num)}
         ${q.svg ? `<div class="q-fig">${q.svg}</div>` : ''}
         <div class="opts">
           ${q.options.map((o, k) => `<button class="opt${selected === o ? ' selected' : ''}" data-val="${o}"><span class="letter">${LETTERS[k]}</span><span class="opt-label">${optLabel(q, o)}</span></button>`).join('')}

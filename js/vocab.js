@@ -108,9 +108,9 @@
       { en: 'possible', vi: 'có thể', ex: 'all possible numbers' },
       { en: 'row', vi: 'hàng (ngang)', ex: 'arrange 4 people in a row' },
       { en: 'next to each other', vi: 'cạnh nhau', ex: 'stand next to each other' },
-      { en: 'give / take', vi: 'cho / lấy (nhận)', ex: 'Lan gives Mai 3 candies.' },
-      { en: 'originally', vi: 'lúc đầu', ex: 'How many did he have originally?' },
-      { en: 'the same number', vi: 'số lượng bằng nhau', ex: 'They have the same number of candies.' },
+      { en: 'give / take', vi: 'cho / nhận', ex: 'Lan gives Mai 3 candies and takes 2 from Hà.' },
+      { en: 'originally', vi: 'ban đầu', ex: 'How many did he have originally?' },
+      { en: 'the same', vi: 'bằng nhau', ex: 'They have the same number of candies.' },
     ],
   };
   const VOCAB_GROUPS = [
@@ -139,7 +139,7 @@
     ['pentagonal', 'ngũ giác', true], ['hexagonal', 'lục giác', true], ['octagonal', 'bát giác', true], ['triangular', 'tam giác', true],
   ];
   // Từ quá cơ bản, không cần chú thích
-  const GLOSS_SKIP = new Set(['how many', 'how much', 'find', 'calculate', 'each', 'next', 'more than', 'possible']);
+  const GLOSS_SKIP = new Set(['how many', 'how much', 'find', 'calculate', 'each', 'next', 'possible']);
 
   const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const GLOSS_ENTRIES = (() => {
@@ -168,10 +168,10 @@
       const m = plain.match(e.re);
       if (!m) continue;
       plain = plain.replace(e.re, (x) => ' '.repeat(x.length)); // không chú thích chồng lên nhau
-      const word = m[0].toLowerCase();
+      const word = e.term.toLowerCase();
       if (seen.has(word)) continue;
       seen.add(word);
-      found.push({ en: m[0], vi: e.vi, at: m.index });
+      found.push({ en: e.term, vi: e.vi, at: m.index }); // hiển thị dạng gốc của từ (gives → give)
     }
     return found.sort((a, b) => a.at - b.at).slice(0, max).map(({ en, vi }) => ({ en, vi }));
   }

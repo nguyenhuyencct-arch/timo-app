@@ -48,6 +48,8 @@
   const fmt = (n) => (Math.abs(n) >= 10000 ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : String(n));
   /** Số thứ tự tiếng Anh: 1st, 2nd, 3rd, 4th, 11th... */
   const ord = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
+  /** Danh từ tiếng Anh số ít/số nhiều: pl(1, 'candy', 'candies') → '1 candy'. */
+  const pl = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const C2 = (n) => (n * (n - 1)) / 2;
   function binom(n, k) {
     let r = 1;
@@ -374,7 +376,7 @@
       const c = rand(2, 8), d = rand(1, 5);
       return numQ('arith', [
         `Trong sân có ${c} con gà và ${d} con chó. Hỏi có tất cả bao nhiêu cái chân?`,
-        `There are ${c} chickens and ${d} dogs in the yard. How many legs are there in total?`,
+        `There ${c === 1 ? 'is' : 'are'} ${pl(c, 'chicken', 'chickens')} and ${pl(d, 'dog', 'dogs')} in the yard. How many legs are there in total?`,
       ], 2 * c + 4 * d, [2 * (c + d), 4 * (c + d), c + d],
       `Gà có 2 chân, chó có 4 chân. Số chân: ${c} × 2 + ${d} × 4 = ${2 * c} + ${4 * d} = <b>${2 * c + 4 * d}</b>.`);
     }
@@ -1148,7 +1150,7 @@
       const a = rand(3, 12), t = rand(1, 2 * a - 1), ans = 2 * a - t;
       return numQ('comb', [
         `Sau khi ${X} cho ${Y} ${a} cái kẹo và lấy của ${Z} ${t} cái kẹo thì ${X} và ${Y} có số kẹo bằng nhau. Hỏi lúc đầu ${X} có nhiều hơn ${Y} bao nhiêu cái kẹo?`,
-        `After ${X} gives ${Y} ${a} candies and takes ${t} candies from ${Z}, ${X} and ${Y} have the same number of candies. How many more candies did ${X} have than ${Y} originally?`,
+        `After ${X} gives ${Y} ${pl(a, 'candy', 'candies')} and takes ${pl(t, 'candy', 'candies')} from ${Z}, ${X} and ${Y} have the same number of candies. How many more candies did ${X} have than ${Y} originally?`,
       ], ans, [2 * a + t, a - t > 0 ? a - t : a + t, 2 * a, a + t],
       `Gọi số kẹo lúc sau của ${X} và ${Y} là S (bằng nhau).<br>Lúc đầu ${Y} có S − ${a} (vì ${Y} được thêm ${a}).<br>Lúc đầu ${X} có S + ${a} − ${t} (vì ${X} cho đi ${a} và nhận thêm ${t}).<br>Hiệu: (S + ${a} − ${t}) − (S − ${a}) = ${a} + ${a} − ${t} = <b>${ans}</b>.`);
     }
@@ -1156,7 +1158,7 @@
     const R = after + x, A = k * after - x, T = R + A;
     return numQ('comb', [
       `${X} có ${R} cái kẹo, ${Y} có ${A} cái kẹo. ${X} phải cho ${Y} bao nhiêu cái kẹo để số kẹo của ${Y} gấp ${k} lần số kẹo của ${X}?`,
-      `${X} has ${R} candies and ${Y} has ${A} candies. How many candies must ${X} give ${Y} so that ${Y} has ${k} times as many candies as ${X}?`,
+      `${X} has ${pl(R, 'candy', 'candies')} and ${Y} has ${pl(A, 'candy', 'candies')}. How many candies must ${X} give ${Y} so that ${Y} has ${k} times as many candies as ${X}?`,
     ], x, [after, R - A, k * after, x + k],
     `Tổng số kẹo không đổi: ${R} + ${A} = ${T}. Lúc sau ${X} có 1 phần, ${Y} có ${k} phần, tổng ${k + 1} phần. ${X} còn ${T} : ${k + 1} = ${after} cái. Vậy ${X} phải cho ${R} − ${after} = <b>${x}</b> cái.`);
   });

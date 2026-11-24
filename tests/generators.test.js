@@ -20,6 +20,7 @@ for (const t of TOPICS) {
         if (q.optLabels) for (const o of q.options) assert.ok(q.optLabels[o], where + ' thiếu nhãn tiếng Anh cho ' + o);
         assert.ok(!/NaN|undefined|Infinity|\d(th|st|nd|rd)\b.*\b(3th|2th|1th)/.test(q.text + q.textEn + q.explain + q.options.join()), where + ' có NaN/undefined');
         assert.ok(!/\b(1th|2th|3th)\b/.test(q.textEn), where + ' sai số thứ tự');
+        assert.ok(!/(^|[^\d.,])1 (candies|dogs|chickens|marbles|apples|socks|trees|cakes|flowers|minutes|seconds|teams|ways|pages|digits|numbers)\b/.test(q.textEn.replace(/<[^>]+>/g, '')), where + ' sai số ít/số nhiều: ' + q.textEn);
         const gl = glossFor(q.textEn);
         assert.ok(gl.length >= 1, where + ' — không có từ chú thích: ' + q.textEn);
         for (const w of gl) assert.ok(w.en && w.vi, where + ' chú thích lỗi');
