@@ -1207,14 +1207,16 @@
     let tries = 0;
     while (out.length < n && tries < n * 60) {
       tries++;
-      const q = GENS[pick(names)].fn(grade);
+      const name = pick(names);
+      const q = GENS[name].fn(grade);
+      q.gen = name; // ghi lại dạng toán để ôn tập bằng câu mới cùng dạng
       const key = q.text + (q.svg || '');
       if (seen.has(key)) continue;
       seen.add(key);
       out.push(q);
     }
     // Dạng có ít biến thể: chấp nhận lặp lại để luôn đủ số câu.
-    while (out.length < n) out.push(GENS[pick(names)].fn(grade));
+    while (out.length < n) { const name = pick(names); const q = GENS[name].fn(grade); q.gen = name; out.push(q); }
     return out;
   }
 
@@ -1224,17 +1226,45 @@
     return generateFrom(names && names.length ? names : t.gens.map((f) => f.name), grade, n);
   }
 
-  /**
-   * Đề thi 25 câu theo cấu trúc TIMO: 5 câu mỗi chủ đề.
-   * allowed: {topicId: [tên dạng]} — các dạng phù hợp với lớp (từ lộ trình).
-   * seed: nếu có, đề luôn giống nhau (bộ đề cố định).
-   */
-  function generateExam(grade, allowed, seed) {
-    const build = () => TOPICS.flatMap((t) => generateSet(t.id, grade, 5, allowed && allowed[t.id]));
-    return seed === undefined ? build() : withSeed(seed, build);
+  /** Sinh một câu mới của dạng `name`, khác các đề bài trong `avoid` (nếu có thể). */
+  function generateLike(name, grade, avoid) {
+    const skip = new Set(avoid || []);
+    let q;
+    for (let i = 0; i < 30; i++) {
+      q = GENS[name].fn(grade);
+      if (!skip.has(q.text + (q.svg || ''))) break;
+    }
+    q.gen = name;
+    return q;
   }
 
-  const api = { TOPICS, GENS, generateFrom, generateSet, generateExam, withSeed };
+  /**
+   * Danh sách 25 dạng toán của một đề: 5 dạng mỗi chủ đề, ưu tiên các dạng khác nhau.
+   * allowed: {topicId: [tên dạng]} — các dạng phù hợp với lớp (từ lộ trình).
+   */
+  function examPlan(allowed) {
+    return TOPICS.flatMap((t) => {
+      const names = shuffle(allowed && allowed[t.id] && allowed[t.id].length ? allowed[t.id] : t.gens.map((f) => f.name));
+      return Array.from({ length: 5 }, (_, i) => names[i % names.length]);
+    });
+  }
+
+  /**
+   * Đề thi 25 câu theo cấu trúc TIMO.
+   * seed: nếu có (bộ đề cố định), danh sách dạng toán luôn giống nhau nhưng số liệu
+   * được sinh mới mỗi lần — so sánh được tiến bộ mà không học thuộc đáp án.
+   */
+  function generateExam(grade, allowed, seed) {
+    const plan = seed === undefined ? examPlan(allowed) : withSeed(seed, () => examPlan(allowed));
+    const seen = [];
+    return plan.map((name) => {
+      const q = generateLike(name, grade, seen);
+      seen.push(q.text + (q.svg || ''));
+      return q;
+    });
+  }
+
+  const api = { TOPICS, GENS, generateFrom, generateLike, generateSet, examPlan, generateExam, withSeed };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.TimoGen = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -369,3 +369,11 @@ body[data-lang="gloss"] .gloss { display: block; font-style: italic; color: var(
 .kpis b { font-size: 22px; font-variant-numeric: tabular-nums; }
 .kpis span { color: var(--muted); font-size: 13px; }
 .links { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Ôn dạng đã sai */
+.weak-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.weak-chip { font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--c, var(--border)); color: var(--c, var(--muted)); }
+.weak-chip small { font-weight: 500; opacity: .8; }
+.chip-logic.weak-chip, .chip-arith.weak-chip, .chip-numth.weak-chip, .chip-geo.weak-chip, .chip-comb.weak-chip { background: var(--card); }
+.bonus-note { margin: 0 0 10px; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--primary) 10%, var(--card)); color: var(--text); }
+.feedback .hero-actions { margin-top: 4px; }

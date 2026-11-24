@@ -57,12 +57,13 @@ for (let g = 1; g <= 6; g++) {
     for (let i = 0; i < 300; i++) { const q = GENS[l.gen].fn(g); variety.add(q.text + (q.svg || '')); }
     assert.ok(variety.size >= 5, `chuyên đề ${l.id} lớp ${g} quá ít biến thể (${variety.size})`);
   }
-  // Bộ đề cố định: cùng seed → cùng đề; khác seed → khác đề
-  const a = generateExam(g, allowed, 1234).map((q) => q.text).join('|');
-  const b = generateExam(g, allowed, 1234).map((q) => q.text).join('|');
-  const c = generateExam(g, allowed, 999).map((q) => q.text).join('|');
-  assert.strictEqual(a, b, 'bộ đề cố định không ổn định ở lớp ' + g);
-  assert.notStrictEqual(a, c, 'hai bộ đề khác nhau lại trùng ở lớp ' + g);
+  // Bộ đề cố định: cùng seed → cùng danh sách dạng toán nhưng số liệu mới; khác seed → khác dạng
+  const e1 = generateExam(g, allowed, 1234), e2 = generateExam(g, allowed, 1234), e3 = generateExam(g, allowed, 999);
+  assert.strictEqual(e1.map((q) => q.gen).join(), e2.map((q) => q.gen).join(), 'bộ đề cố định đổi dạng toán ở lớp ' + g);
+  assert.ok(e1.every((q) => q.gen && allowed[q.topic].includes(q.gen)), 'đề có dạng không phù hợp lớp ' + g);
+  assert.ok(e1.filter((q, i) => q.text === e2[i].text).length < 20, 'làm lại bộ đề mà số liệu gần như không đổi ở lớp ' + g);
+  assert.notStrictEqual(e1.map((q) => q.gen).join(), e3.map((q) => q.gen).join(), 'hai bộ đề khác nhau lại trùng ở lớp ' + g);
+  assert.strictEqual(new Set(e1.map((q) => q.text + (q.svg || ''))).size, 25, 'đề có câu trùng ở lớp ' + g);
   assert.strictEqual(generateExam(g, allowed, 1234).length, 25);
 }
 console.log(`Lộ trình: ${LESSONS.length} chuyên đề; số chuyên đề theo lớp: ${[1,2,3,4,5,6].map((g) => lessonsFor(g).length).join(', ')}`);

@@ -10,9 +10,9 @@
  */
 (function () {
   'use strict';
-  const { TOPICS, generateFrom, generateExam } = window.TimoGen;
+  const { TOPICS, generateFrom, generateLike, generateExam } = window.TimoGen;
   const { VOCAB, VOCAB_GROUPS, glossFor } = window.TimoVocab;
-  const { lessonsFor, allowedFor } = window.TimoCurriculum;
+  const { LESSONS, lessonsFor, allowedFor } = window.TimoCurriculum;
   const $app = document.getElementById('app');
   const $lang = document.getElementById('lang');
   const $gradeBtn = document.getElementById('grade-btn');
@@ -23,7 +23,7 @@
   const EXAM_MINUTES = 60;
   const POINTS = 4;
   const EXAM_SETS = 10;      // số bộ đề cố định mỗi lớp
-  const WRONG_MAX = 60;      // số câu sai lưu lại để ôn
+  const MASTER = 2;          // làm đúng 2 câu mới liên tiếp của một dạng thì dạng đó được xóa khỏi danh sách ôn
   const LETTERS = ['A', 'B', 'C', 'D'];
   const topicById = (id) => TOPICS.find((t) => t.id === id);
 
@@ -76,10 +76,16 @@
     s[key].total++;
     if (correct) s[key].right++;
     store.set('stats', s);
-    const wrong = gget('wrong', []).filter((w) => w.text !== q.text);
-    if (!correct) wrong.unshift(q);
-    gset('wrong', wrong.slice(0, WRONG_MAX));
+    // Lưu DẠNG toán đã sai (không lưu nguyên câu): khi ôn sẽ sinh câu mới cùng dạng,
+    // tránh việc trẻ nhớ đáp án hoặc đoán thử.
+    if (!q.gen) return;
+    const weak = gget('weak', {});
+    const w = weak[q.gen];
+    if (!correct) weak[q.gen] = { topic: q.topic, need: MASTER, misses: ((w && w.misses) || 0) + 1, last: q.text, at: Date.now() };
+    else if (w) { w.need--; w.last = q.text; if (w.need <= 0) delete weak[q.gen]; }
+    gset('weak', weak);
   }
+  const lessonTitle = (gen) => { const l = LESSONS.find((x) => x.gen === gen); return l ? l.title(grade) : gen; };
 
   // ---------- Hộp thoại trong trang ----------
   function ask(msg, okText = 'Đồng ý', cancelText = 'Hủy') {
@@ -199,38 +205,59 @@
       </article>`;
   }
 
-  /** Chạy một lượt câu hỏi, chấm ngay từng câu, gọi onDone(số câu đúng) khi xong. */
+  /**
+   * Chạy một lượt câu hỏi, chấm ngay từng câu, gọi onDone(số câu đúng, số câu) khi xong.
+   * Làm sai thì có nút "Làm câu tương tự": thêm một câu MỚI cùng dạng (số liệu khác),
+   * không tính vào điểm — để em hiểu cách làm thay vì nhớ đáp án.
+   */
   function runQuiz({ title, qs, onDone }) {
+    qs = qs.slice();
+    const base = qs.length;
     let i = 0, right = 0;
+    const mainIndex = (k) => qs.slice(0, k + 1).filter((x) => !x.bonus).length;
     function render() {
-      if (i >= qs.length) return onDone(right, qs.length);
+      if (i >= qs.length) return onDone(right, base);
       const q = qs[i];
+      const done = mainIndex(i) - (q.bonus ? 0 : 1);
       $app.innerHTML = `
-        <div class="bar"><span>${title} · Lớp ${grade}</span><span>Câu ${i + 1}/${qs.length} · Đúng ${right}</span></div>
-        <div class="progress"><div style="width:${(100 * i) / qs.length}%"></div></div>
-        ${questionCard(q, i + 1)}
+        <div class="bar"><span>${title} · Lớp ${grade}</span><span>${q.bonus ? '🔁 Tương tự' : `Câu ${mainIndex(i)}/${base}`} · Đúng ${right}</span></div>
+        <div class="progress"><div style="width:${(100 * done) / base}%"></div></div>
+        ${q.bonus ? '<p class="note bonus-note">Câu mới cùng dạng với câu em vừa làm sai — số liệu đã thay đổi. Câu này không tính điểm.</p>' : ''}
+        ${questionCard(q, q.bonus ? `${mainIndex(i)} (tương tự)` : mainIndex(i))}
         <div id="feedback"></div>`;
       $app.querySelectorAll('.opt').forEach((btn) => btn.addEventListener('click', () => check(btn.dataset.val)));
     }
     function check(val) {
       const q = qs[i];
       const ok = val === q.answer;
-      if (ok) right++;
+      if (ok && !q.bonus) right++;
       recordAnswer(q, ok);
       $app.querySelectorAll('.opt').forEach((b) => {
         b.disabled = true;
         if (b.dataset.val === q.answer) b.classList.add('correct');
         else if (b.dataset.val === val) b.classList.add('wrong');
       });
+      const last = i + 1 >= qs.length;
+      const canSimilar = !ok && q.gen;
       document.getElementById('feedback').innerHTML = `
         <div class="feedback ${ok ? 'ok' : 'no'}">
-          <h3>${ok ? '🎉 Chính xác!' : `😅 Chưa đúng. Đáp án là <b>${optLabel(q, q.answer)}</b>`}</h3>
+          <h3>${ok ? (q.bonus ? '🎉 Chính xác! Em đã hiểu cách làm rồi.' : '🎉 Chính xác!') : `😅 Chưa đúng. Đáp án là <b>${optLabel(q, q.answer)}</b>`}</h3>
           <div class="explain"><b>Lời giải:</b> ${q.explain}</div>
-          <button class="btn primary" id="next">${i + 1 < qs.length ? 'Câu tiếp theo →' : 'Xem kết quả'}</button>
+          <div class="hero-actions">
+            ${canSimilar ? '<button class="btn primary" id="similar">🔁 Làm câu tương tự</button>' : ''}
+            <button class="btn ${canSimilar ? '' : 'primary'}" id="next">${last ? 'Xem kết quả' : 'Câu tiếp theo →'}</button>
+          </div>
         </div>`;
-      const next = document.getElementById('next');
-      next.focus();
-      next.addEventListener('click', () => { i++; render(); });
+      const first = document.getElementById(canSimilar ? 'similar' : 'next');
+      first.focus();
+      document.getElementById('next').addEventListener('click', () => { i++; render(); });
+      if (canSimilar) document.getElementById('similar').addEventListener('click', () => {
+        const nq = generateLike(q.gen, grade, qs.map((x) => x.text + (x.svg || '')));
+        nq.bonus = true;
+        qs.splice(i + 1, 0, nq);
+        i++;
+        render();
+      });
     }
     render();
   }
@@ -355,16 +382,19 @@
 
   // ---------- 🔁 Ôn tập ----------
   function review() {
-    const wrong = gget('wrong', []);
+    const weak = gget('weak', {});
+    const weakGens = Object.keys(weak).sort((a, b) => weak[b].misses - weak[a].misses);
     const { list } = pathState();
     const learned = list.filter((l) => l.stars > 0);
     const s = store.get('stats', {});
     $app.innerHTML = `
       <h2 class="section-title">🔁 Ôn tập — Lớp ${grade}</h2>
       <section class="card review-card">
-        <div><h3>❌ Ôn câu đã làm sai</h3>
-        <p>${wrong.length ? `Em có <b>${wrong.length}</b> câu đã làm sai. Làm đúng câu nào thì câu đó được xóa khỏi danh sách.` : 'Chưa có câu sai nào. Giỏi lắm!'}</p></div>
-        <button class="btn primary" id="r-wrong" ${wrong.length ? '' : 'disabled'}>Ôn ${Math.min(MIX_LEN, wrong.length) || ''} câu sai</button>
+        <div><h3>❌ Ôn dạng đã làm sai</h3>
+        ${weakGens.length ? `<p>Em có <b>${weakGens.length}</b> dạng toán cần ôn. Mỗi lần ôn là <b>câu hỏi mới cùng dạng</b> (số liệu khác), nên em cần hiểu cách làm chứ không nhớ đáp án. Làm đúng ${MASTER} câu liên tiếp của một dạng thì dạng đó được xóa khỏi danh sách.</p>
+          <div class="weak-list">${weakGens.slice(0, 8).map((g) => `<span class="weak-chip chip-${weak[g].topic}">${topicById(weak[g].topic).icon} ${lessonTitle(g)} <small>· còn ${weak[g].need}</small></span>`).join('')}${weakGens.length > 8 ? `<span class="weak-chip">+${weakGens.length - 8}</span>` : ''}</div>`
+          : '<p>Chưa có dạng nào cần ôn. Giỏi lắm!</p>'}</div>
+        <button class="btn primary" id="r-wrong" ${weakGens.length ? '' : 'disabled'}>Ôn ngay</button>
       </section>
       <section class="card review-card">
         <div><h3>🎯 Luyện tổng hợp</h3>
@@ -395,7 +425,16 @@
         },
       });
     }
-    document.getElementById('r-wrong').addEventListener('click', () => start('Ôn câu sai', gget('wrong', []).slice(0, MIX_LEN)));
+    document.getElementById('r-wrong').addEventListener('click', () => {
+      // Mỗi dạng cần ôn: sinh số câu mới bằng số lần cần làm đúng, tránh câu em vừa làm sai.
+      const qs = [];
+      const avoid = weakGens.map((g) => weak[g].last);
+      for (const g of weakGens) for (let k = 0; k < weak[g].need && qs.length < MIX_LEN; k++) {
+        const q = generateLike(g, grade, avoid.concat(qs.map((x) => x.text + (x.svg || ''))));
+        qs.push(q);
+      }
+      start('Ôn dạng đã sai', qs);
+    });
     document.getElementById('r-mix').addEventListener('click', () => {
       const names = (learned.length ? learned : list).map((l) => l.gen);
       start('Luyện tổng hợp', generateFrom(names, grade, MIX_LEN));
@@ -425,7 +464,7 @@
       <p class="hint">Mỗi đề 25 câu (5 câu mỗi chủ đề), ${EXAM_MINUTES} phút, mỗi câu ${POINTS} điểm.</p>
       <section class="card">
         <div class="card-head"><h3>📚 Thi theo bộ đề</h3><span class="hint">${doneSets}/${EXAM_SETS} đề đã làm</span></div>
-        <p class="hint">Mỗi bộ đề cố định, làm lại vẫn là đúng đề đó — phù hợp để so sánh tiến bộ.</p>
+        <p class="hint">Mỗi bộ đề giữ cố định 25 dạng toán để so sánh tiến bộ, nhưng số liệu thay đổi mỗi lần làm — em không thể học thuộc đáp án.</p>
         <div class="set-grid">
           ${Array.from({ length: EXAM_SETS }, (_, i) => {
             const n = i + 1, best = sets[n];
@@ -563,7 +602,7 @@
             <div class="meter"><div class="meter-fill fill-${x.t.id}" style="width:${(100 * x.right) / x.total}%"></div></div>
             <b>${x.right}/${x.total}</b>
           </div>`).join('')}
-        <p class="hint">Gợi ý: ôn thêm chủ đề <b>${weakest.t.name}</b>. Các câu sai đã được lưu vào mục Ôn tập.</p>
+        <p class="hint">Gợi ý: ôn thêm chủ đề <b>${weakest.t.name}</b>. Các dạng em làm sai đã được lưu vào mục Ôn tập — khi ôn sẽ là câu mới cùng dạng.</p>
       </section>
       <h2 class="section-title">Xem lại bài làm</h2>
       ${exam.qs.map((q, k) => {
@@ -578,7 +617,7 @@
       }).join('')}
       <div class="hero-actions">
         ${exam.mode === 'set' ? `<button class="btn primary" data-go="exam-intro" data-arg="set-${exam.setNo}">Làm lại ${examLabel('set', exam.setNo)}</button>` : '<button class="btn primary" data-go="exam-intro" data-arg="random">Làm đề ngẫu nhiên khác</button>'}
-        <button class="btn" data-go="review">Ôn câu sai</button>
+        <button class="btn" data-go="review">Ôn dạng đã sai</button>
         <button class="btn" data-go="exams">Về Thi thử</button>
       </div>`;
     exam = null;
@@ -677,7 +716,7 @@
           <div><b>${done}/${list.length}</b><span>Chuyên đề đã qua</span></div>
           <div><b>${Object.keys(sets).length}/${EXAM_SETS}</b><span>Bộ đề đã làm</span></div>
           <div><b>${hist.length ? bestExam : '—'}</b><span>Điểm thi cao nhất</span></div>
-          <div><b>${gget('wrong', []).length}</b><span>Câu sai cần ôn</span></div>
+          <div><b>${Object.keys(gget('weak', {})).length}</b><span>Dạng cần ôn</span></div>
         </div>
       </section>
       <section class="card">
@@ -702,7 +741,7 @@
     document.getElementById('reset').addEventListener('click', () => {
       ask(`Xóa toàn bộ tiến độ lộ trình, bộ đề, câu sai và lịch sử thi của lớp ${grade}?`, 'Xóa', 'Hủy').then((ok) => {
         if (!ok) return;
-        ['lessons', 'sets', 'wrong'].forEach((k) => gset(k, k === 'wrong' ? [] : {}));
+        ['lessons', 'sets', 'weak'].forEach((k) => gset(k, {}));
         const st = store.get('stats', {});
         TOPICS.forEach((t) => delete st[`${grade}:${t.id}`]);
         store.set('stats', st);
