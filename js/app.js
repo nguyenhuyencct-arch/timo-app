@@ -10,9 +10,9 @@
  */
 (function () {
   'use strict';
-  const { TOPICS, generateFrom, generateLike, generateExam } = window.TimoGen;
+  const { TOPICS, generateFrom, generateLike, generateExam, generatePlanned } = window.TimoGen;
   const { VOCAB, VOCAB_GROUPS, glossFor } = window.TimoVocab;
-  const { LESSONS, lessonsFor, allowedFor } = window.TimoCurriculum;
+  const { LESSONS, lessonsFor, allowedFor, VQG_BLUEPRINT } = window.TimoCurriculum;
   const $app = document.getElementById('app');
   const $lang = document.getElementById('lang');
   const $gradeBtn = document.getElementById('grade-btn');
@@ -348,12 +348,19 @@
         <h3>Ví dụ mẫu</h3>
         ${qText(ex)}
         ${ex.svg ? `<div class="q-fig">${ex.svg}</div>` : ''}
-        <details class="solution"><summary>Xem đáp án và lời giải</summary>
-          <p><b>Đáp án: ${optLabel(ex, ex.answer)}</b></p>
-          <div class="explain">${ex.explain}</div>
-        </details>
+        <button class="btn reveal-btn" id="reveal" aria-expanded="false">👁 Xem đáp án và lời giải</button>
+        <div class="solution-box" id="solution" hidden>
+          <p class="sol-answer">Đáp án: <b>${optLabel(ex, ex.answer)}</b></p>
+          <div class="explain"><b>Lời giải:</b> ${ex.explain}</div>
+        </div>
       </section>
       <button class="btn primary wide" id="start">Luyện tập ${LESSON_LEN} câu →</button>`;
+    document.getElementById('reveal').addEventListener('click', (e) => {
+      const box = document.getElementById('solution'), open = box.hidden;
+      box.hidden = !open;
+      e.currentTarget.setAttribute('aria-expanded', String(open));
+      e.currentTarget.textContent = open ? '🙈 Ẩn đáp án và lời giải' : '👁 Xem đáp án và lời giải';
+    });
     document.getElementById('start').addEventListener('click', () => {
       runQuiz({
         title: l.title(grade),
@@ -453,7 +460,12 @@
     if (score >= 40) return ['🎖️', 'Khuyến khích'];
     return ['💪', 'Cố gắng thêm nhé'];
   }
-  const examLabel = (mode, setNo) => (mode === 'set' ? `Bộ đề số ${setNo}` : 'Đề ngẫu nhiên');
+  const examLabel = (mode, setNo) => (mode === 'set' ? `Bộ đề số ${setNo}` : mode === 'vqg' ? 'Đề mô phỏng VQG' : 'Đề ngẫu nhiên');
+  /** Chuẩn hóa đáp án để so sánh đáp án điền: bỏ khoảng trắng, dấu phân cách hàng nghìn, không phân biệt hoa thường. */
+  const norm = (v) => String(v).replace(/[\s\u202F.,]/g, '').toUpperCase();
+  /** Câu điền được đáp án khi đáp án là số hoặc chữ cái (không phải tên ngày, hình…). */
+  const canFill = (q) => /^[0-9]+$/.test(norm(q.answer)) || /^[A-Z]{1,6}$/.test(norm(q.answer));
+  const isRight = (q, a) => a !== undefined && norm(a) === norm(q.answer);
 
   function exams() {
     const sets = gget('sets', {});
@@ -475,6 +487,10 @@
           }).join('')}
         </div>
       </section>
+      <section class="card review-card vqg-card">
+        <div><h3>🏆 Đề mô phỏng Vòng Quốc gia</h3><p>25 câu theo đúng khung đề thi thử VQG: mỗi vị trí câu là dạng toán thường gặp ở vị trí đó (câu 1 quy luật chữ cái, câu 6–10 thủ thuật tính, câu 25 trường hợp xấu nhất…). Mặc định làm bài kiểu <b>điền đáp án</b> như đề thật.</p></div>
+        <button class="btn primary" data-go="exam-intro" data-arg="vqg">Làm đề mô phỏng</button>
+      </section>
       <section class="card review-card">
         <div><h3>🎲 Thi đề ngẫu nhiên</h3><p>Mỗi lần là một đề mới, không giới hạn số lần.</p></div>
         <button class="btn primary" data-go="exam-intro" data-arg="random">Tạo đề mới</button>
@@ -486,7 +502,7 @@
   }
 
   function examIntro(arg) {
-    const mode = arg && arg.startsWith('set-') ? 'set' : 'random';
+    const mode = arg && arg.startsWith('set-') ? 'set' : arg === 'vqg' ? 'vqg' : 'random';
     const setNo = mode === 'set' ? +arg.slice(4) : null;
     const best = mode === 'set' ? gget('sets', {})[setNo] : undefined;
     $app.innerHTML = `
@@ -495,17 +511,28 @@
         <h2>📝 ${examLabel(mode, setNo)} — Lớp ${grade}</h2>
         ${best !== undefined ? `<p>Điểm cao nhất của em: <b>${best}/100</b>. Cố gắng vượt qua nhé!</p>` : ''}
         <ul class="rules">
-          <li><b>25 câu</b> trắc nghiệm, chia đều 5 chủ đề: Tư duy logic, Số học, Lý thuyết số, Hình học, Tổ hợp.</li>
+          <li><b>25 câu</b>, chia đều 5 chủ đề theo thứ tự: Tư duy logic (1–5), Số học (6–10), Lý thuyết số (11–15), Hình học (16–20), Tổ hợp (21–25).</li>
           <li>Thời gian: <b>${EXAM_MINUTES} phút</b>. Hết giờ bài sẽ tự nộp.</li>
           <li>Mỗi câu đúng được <b>${POINTS} điểm</b>, tối đa <b>100</b>. Câu sai hoặc bỏ trống không bị trừ điểm.</li>
           <li>Em có thể chuyển qua lại giữa các câu và đổi đáp án trước khi nộp bài.</li>
           <li>Chuẩn bị giấy nháp và bút chì. Không dùng máy tính bỏ túi.</li>
         </ul>
+        <p class="ob-label">Hình thức làm bài:</p>
+        <div class="seg seg-2">
+          <button class="seg-opt${mode === 'vqg' ? ' selected' : ''}" data-fill="1">✍️ Điền đáp án<br><small>như đề thi thật</small></button>
+          <button class="seg-opt${mode === 'vqg' ? '' : ' selected'}" data-fill="0">🔘 Trắc nghiệm<br><small>chọn 1 trong 4</small></button>
+        </div>
         <button class="btn primary" id="start">Bắt đầu làm bài</button>
       </section>`;
+    let fill = mode === 'vqg';
+    $app.querySelectorAll('[data-fill]').forEach((b) => b.addEventListener('click', () => {
+      fill = b.dataset.fill === '1';
+      $app.querySelectorAll('[data-fill]').forEach((x) => x.classList.toggle('selected', x === b));
+    }));
     document.getElementById('start').addEventListener('click', () => {
       const seed = mode === 'set' ? grade * 7919 + setNo * 104729 : undefined;
-      exam = { qs: generateExam(grade, allowedFor(grade), seed), answers: {}, cur: 0, end: Date.now() + EXAM_MINUTES * 60000, done: false, grade, mode, setNo };
+      const qs = mode === 'vqg' ? generatePlanned(VQG_BLUEPRINT, grade) : generateExam(grade, allowedFor(grade), seed);
+      exam = { qs, answers: {}, cur: 0, end: Date.now() + EXAM_MINUTES * 60000, done: false, grade, mode, setNo, fill };
       go('exam');
     });
   }
@@ -528,7 +555,7 @@
       $app.innerHTML = `
         <div class="bar"><span id="timer" class="timer"></span><span>${examLabel(exam.mode, exam.setNo)} · Đã làm ${answered}/25</span></div>
         <div class="nav-grid">${exam.qs.map((x, k) => `<button class="nav-q${k === exam.cur ? ' cur' : ''}${exam.answers[k] !== undefined ? ' done' : ''}" data-q="${k}">${k + 1}</button>`).join('')}</div>
-        ${questionCard(q, exam.cur + 1, exam.answers[exam.cur])}
+        ${exam.fill && canFill(q) ? fillCard(q, exam.cur + 1, exam.answers[exam.cur]) : questionCard(q, exam.cur + 1, exam.answers[exam.cur])}
         <div class="exam-actions">
           <button class="btn" id="prev" ${exam.cur === 0 ? 'disabled' : ''}>← Câu trước</button>
           ${exam.cur < 24 ? '<button class="btn" id="nextq">Câu sau →</button>' : ''}
@@ -540,6 +567,15 @@
         if (exam.cur < 24) exam.cur++;
         render();
       }));
+      const ff = document.getElementById('fill-form');
+      if (ff) {
+        const inp = document.getElementById('fill-input');
+        if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) inp.focus();
+        const save = () => { const v = inp.value.trim(); if (v) exam.answers[exam.cur] = v; else delete exam.answers[exam.cur]; };
+        ff.addEventListener('submit', (e) => { e.preventDefault(); save(); if (exam.cur < 24) exam.cur++; render(); });
+        // Lưu ngay khi gõ để chuyển câu bằng thanh điều hướng không mất đáp án
+        inp.addEventListener('input', save);
+      }
       $app.querySelectorAll('.nav-q').forEach((b) => b.addEventListener('click', () => { exam.cur = +b.dataset.q; render(); }));
       document.getElementById('prev').addEventListener('click', () => { exam.cur--; render(); });
       const nextq = document.getElementById('nextq');
@@ -554,8 +590,8 @@
       exam.done = true;
       document.querySelectorAll('.modal-back').forEach((m) => m.remove());
       clearInterval(timer); timer = null;
-      exam.qs.forEach((q, k) => recordAnswer(q, exam.answers[k] === q.answer));
-      const right = exam.qs.filter((q, k) => exam.answers[k] === q.answer).length;
+      exam.qs.forEach((q, k) => recordAnswer(q, isRight(q, exam.answers[k])));
+      const right = exam.qs.filter((q, k) => isRight(q, exam.answers[k])).length;
       const score = right * POINTS;
       const used = Math.min(EXAM_MINUTES * 60000, EXAM_MINUTES * 60000 - (exam.end - Date.now()));
       const hist = store.get('history', []);
@@ -574,14 +610,31 @@
     timer = setInterval(tick, 1000);
   }
 
+  /** Thẻ câu hỏi dạng điền đáp án (như đề thi thật). */
+  function fillCard(q, num, value) {
+    const t = topicById(q.topic);
+    const numeric = /^[0-9]+$/.test(norm(q.answer));
+    return `
+      <article class="card question">
+        <div class="q-head"><span class="chip chip-${q.topic}">${t.icon} ${dual(t.name, t.en)}</span><span class="q-num">${dual(`Câu ${num}`, `Question ${num}`)}</span></div>
+        ${qText(q, num)}
+        ${q.svg ? `<div class="q-fig">${q.svg}</div>` : ''}
+        <form class="fill-form" id="fill-form" autocomplete="off">
+          <label for="fill-input" class="fill-label">Đáp án:</label>
+          <input id="fill-input" class="fill-input" ${numeric ? 'inputmode="numeric"' : 'inputmode="text" autocapitalize="characters"'} value="${value ? String(value).replace(/["<>]/g, '') : ''}" placeholder="${numeric ? 'Nhập số' : 'Nhập chữ'}">
+          <button class="btn primary" type="submit">Lưu ✓</button>
+        </form>
+      </article>`;
+  }
+
   function result() {
     if (!exam || !exam.done) return exams();
-    const right = exam.qs.filter((q, k) => exam.answers[k] === q.answer).length;
+    const right = exam.qs.filter((q, k) => isRight(q, exam.answers[k])).length;
     const score = right * POINTS;
     const [icon, label] = award(score);
     const byTopic = TOPICS.map((t) => {
       const idx = exam.qs.map((q, k) => k).filter((k) => exam.qs[k].topic === t.id);
-      return { t, total: idx.length, right: idx.filter((k) => exam.answers[k] === exam.qs[k].answer).length };
+      return { t, total: idx.length, right: idx.filter((k) => isRight(exam.qs[k], exam.answers[k])).length };
     });
     const weakest = byTopic.slice().sort((a, b) => a.right / a.total - b.right / b.total)[0];
     const newBest = exam.mode === 'set' && (exam.prevBest === undefined || score > exam.prevBest);
@@ -607,16 +660,16 @@
       <h2 class="section-title">Xem lại bài làm</h2>
       ${exam.qs.map((q, k) => {
         const a = exam.answers[k];
-        const ok = a === q.answer;
+        const ok = isRight(q, a);
         return `<details class="card review ${ok ? 'ok' : 'no'}">
-          <summary>${ok ? '✅' : a === undefined ? '⬜' : '❌'} Câu ${k + 1} · ${topicById(q.topic).name} — Em chọn: <b>${a === undefined ? 'bỏ trống' : optLabel(q, a)}</b>${ok ? '' : ` · Đáp án: <b>${optLabel(q, q.answer)}</b>`}</summary>
+          <summary>${ok ? '✅' : a === undefined ? '⬜' : '❌'} Câu ${k + 1} · ${topicById(q.topic).name} — Em ${exam.fill && canFill(q) ? 'điền' : 'chọn'}: <b>${a === undefined ? 'bỏ trống' : q.options.includes(a) ? optLabel(q, a) : a}</b>${ok ? '' : ` · Đáp án: <b>${optLabel(q, q.answer)}</b>`}</summary>
           ${qText(q)}
           ${q.svg ? `<div class="q-fig">${q.svg}</div>` : ''}
           <div class="explain"><b>Lời giải:</b> ${q.explain}</div>
         </details>`;
       }).join('')}
       <div class="hero-actions">
-        ${exam.mode === 'set' ? `<button class="btn primary" data-go="exam-intro" data-arg="set-${exam.setNo}">Làm lại ${examLabel('set', exam.setNo)}</button>` : '<button class="btn primary" data-go="exam-intro" data-arg="random">Làm đề ngẫu nhiên khác</button>'}
+        ${exam.mode === 'set' ? `<button class="btn primary" data-go="exam-intro" data-arg="set-${exam.setNo}">Làm lại ${examLabel('set', exam.setNo)}</button>` : `<button class="btn primary" data-go="exam-intro" data-arg="${exam.mode}">Làm ${exam.mode === 'vqg' ? 'đề mô phỏng' : 'đề ngẫu nhiên'} khác</button>`}
         <button class="btn" data-go="review">Ôn dạng đã sai</button>
         <button class="btn" data-go="exams">Về Thi thử</button>
       </div>`;

@@ -123,7 +123,7 @@
   ];
   // Từ trong lời văn đề bài (không đưa vào bảng từ vựng, chỉ dùng để chú thích).
   const GLOSS_EXTRA = [
-    ['calculate quickly', 'tính nhanh', true], ['line segment', 'đoạn thẳng'], ['point', 'điểm'], ['straight line', 'đường thẳng'], ['joining', 'nối', true], ['card', 'tấm thiệp'], ['sends', 'gửi', true], ['leg', 'chân'], ['chicken', 'con gà'], ['dog', 'con chó'], ['marble', 'viên bi'], ['candy', 'cái kẹo'], ['candies', 'kẹo', true],
+    ['calculate quickly', 'tính nhanh', true], ['code', 'mật mã'], ['term', 'số hạng'], ['coin', 'đồng xu'], ['costs', 'có giá', true], ['comic book', 'truyện tranh'], ['chapter', 'chương'], ['stacked', 'được xếp chồng', true], ['cube', 'khối lập phương'], ['stands for', 'thay cho', true], ['path', 'đường đi'], ['line segment', 'đoạn thẳng'], ['point', 'điểm'], ['straight line', 'đường thẳng'], ['joining', 'nối', true], ['card', 'tấm thiệp'], ['sends', 'gửi', true], ['leg', 'chân'], ['chicken', 'con gà'], ['dog', 'con chó'], ['marble', 'viên bi'], ['candy', 'cái kẹo'], ['candies', 'kẹo', true],
     ['sock', 'chiếc tất'], ['colour', 'màu'], ['bag', 'túi'], ['tree', 'cây'], ['road', 'con đường'], ['planted', 'được trồng', true],
     ['shirt', 'áo'], ['trousers', 'quần', true], ['hat', 'mũ'], ['skirt', 'váy'], ['cake', 'cái bánh'], ['flower', 'bông hoa'],
     ['toy', 'đồ chơi'], ['price', 'giá'], ['reduced', 'được giảm', true], ['thousand dong', 'nghìn đồng', true],
@@ -132,7 +132,7 @@
     ['shortest', 'thấp nhất', true], ['second tallest', 'cao thứ nhì', true], ['mother', 'mẹ'], ['older brother', 'anh trai'],
     ['younger brother', 'em trai'], ['years old', 'tuổi', true], ['shared equally', 'chia đều', true], ['left over', 'còn thừa', true],
     ['leaves a remainder', 'chia còn dư', true], ['larger', 'lớn hơn', true], ['smaller', 'nhỏ hơn', true], ['added', 'thêm vào', true],
-    ['factors of', 'thừa số', true], ['all different', 'đều khác nhau', true], ['letters', 'chữ cái', true], ['word', 'từ'],
+    ['factors of', 'thừa số', true], ['all different', 'đều khác nhau', true], ['letter', 'chữ cái'], ['word', 'từ'],
     ['left end', 'đầu bên trái', true], ['wide', 'rộng', true], ['long', 'dài', true], ['side by side', 'đặt sát cạnh nhau', true],
     ['including', 'kể cả', true], ['in a row', 'thành một hàng', true], ['today', 'hôm nay', true], ['floor', 'tầng'],
     ['walk', 'đi bộ', true], ['speed', 'tốc độ', true], ['digits', 'chữ số', true], ['quadrilateral', 'tứ giác', true],

@@ -26,14 +26,14 @@ Chạy hoàn toàn trên trình duyệt, không cần cài đặt hay máy chủ
 1. **Chọn lớp lúc mở app lần đầu** (popup, lớp 1–6) kèm chọn cách hiển thị đề; đổi lớp bất cứ lúc nào bằng nút *Lớp ▾* — tiến độ từng lớp được giữ riêng.
 2. **🗺️ Lộ trình** — 25–34 chuyên đề tùy lớp, chia theo 5 chủ đề TIMO. Mỗi chuyên đề: *Phương pháp* → *Ví dụ mẫu có lời giải* → *Luyện 5 câu*. Đúng ≥ 3/5 câu để qua và mở chuyên đề kế tiếp (1–3 sao). Nút *Học tiếp* gợi ý chuyên đề nên học, xoay vòng giữa các chủ đề.
 3. **🔁 Ôn tập** — *Ôn câu sai* (mọi câu làm sai được lưu; làm đúng thì xóa khỏi danh sách), *Luyện tổng hợp* từ các chuyên đề đã học, *Ôn theo chủ đề*.
-4. **📝 Thi** — *10 bộ đề cố định* mỗi lớp (làm lại vẫn đúng đề đó, lưu điểm cao nhất) và *Đề ngẫu nhiên* không giới hạn. Đề 25 câu (5 câu/chủ đề), 60 phút, chấm /100, phân tích theo chủ đề, xem lại lời giải.
+4. **📝 Thi** — *Đề mô phỏng Vòng Quốc gia* (25 câu theo đúng khung đề thi thử VQG, mặc định điền đáp án), *10 bộ đề cố định* mỗi lớp (làm lại vẫn đúng đề đó, lưu điểm cao nhất) và *Đề ngẫu nhiên* không giới hạn. Chọn hình thức *điền đáp án* (như đề thật) hoặc *trắc nghiệm*. Đề 25 câu (5 câu/chủ đề), 60 phút, chấm /100, phân tích theo chủ đề, xem lại lời giải.
 5. **📖 Từ vựng** — từ vựng Toán tiếng Anh theo chủ đề + đố từ.
 6. **👤 Tôi** — hồ sơ, tổng quan tiến độ, tỉ lệ đúng theo chủ đề, lịch sử thi, giới thiệu TIMO.
 
 ## Tính năng khác
 
 - **4 cách hiển thị đề**: *Tiếng Việt*, *Song ngữ* (như đề TIMO tại Việt Nam), *Anh + chú thích* (đề tiếng Anh, tự giải nghĩa từ khó) và *English*. Lời giải luôn bằng tiếng Việt.
-- **Câu hỏi sinh tự động** theo 34 dạng toán, số liệu ngẫu nhiên, đáp án do máy tính toán nên luôn chính xác.
+- **Câu hỏi sinh tự động** theo 65 dạng toán (gồm 31 dạng theo bộ 49 chuyên đề luyện thi Vòng Quốc gia khối 3 — xem `docs/phan-tich-tai-lieu-timo-khoi3.md`), số liệu ngẫu nhiên, đáp án do máy tính toán nên luôn chính xác.
 - Dùng tốt trên điện thoại, hỗ trợ chế độ tối; dữ liệu lưu trên trình duyệt.
 
 ## Cách dùng
@@ -64,6 +64,7 @@ node tests/generators.test.js
 index.html             Khung giao diện
 css/styles.css         Giao diện
 js/generators.js       Bộ sinh câu hỏi song ngữ theo 5 chủ đề TIMO (dùng được cả trong Node)
+js/generators-k3.js    31 dạng bổ sung theo 49 chuyên đề Vòng Quốc gia khối 3
 js/vocab.js            Từ vựng Toán tiếng Anh theo chủ đề + chú thích từ khó
 js/curriculum.js       Lộ trình: danh sách chuyên đề, phương pháp, lớp phù hợp
 scripts/build-single.js  Đóng gói thành một file HTML (dist/timo.html)

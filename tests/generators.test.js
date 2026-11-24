@@ -1,6 +1,7 @@
 // Chạy: node tests/generators.test.js
 const assert = require('assert');
 const { TOPICS, generateExam } = require('../js/generators.js');
+require('../js/generators-k3.js');
 const { VOCAB, glossFor } = require('../js/vocab.js');
 
 let count = 0;

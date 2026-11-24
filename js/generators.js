@@ -1200,6 +1200,23 @@
   const GENS = {};
   TOPICS.forEach((t) => t.gens.forEach((f) => { GENS[f.name] = { fn: f, topic: t.id }; }));
 
+  /** Thêm một dạng toán từ file khác (vd. generators-k3.js). */
+  function addGen(topicId, fn) {
+    const t = TOPICS.find((x) => x.id === topicId);
+    t.gens.push(fn);
+    GENS[fn.name] = { fn, topic: topicId };
+  }
+
+  /** Sinh đề theo khung: mỗi vị trí là danh sách dạng toán có thể chọn (vd. khung đề VQG). */
+  function generatePlanned(slots, grade) {
+    const seen = [];
+    return slots.map((names) => {
+      const q = generateLike(pick(names), grade, seen);
+      seen.push(q.text + (q.svg || ''));
+      return q;
+    });
+  }
+
   /** Sinh n câu không trùng nhau, mỗi câu lấy ngẫu nhiên từ một trong các dạng `names`. */
   function generateFrom(names, grade, n) {
     const seen = new Set();
@@ -1264,7 +1281,11 @@
     });
   }
 
-  const api = { TOPICS, GENS, generateFrom, generateLike, generateSet, examPlan, generateExam, withSeed };
+  const helpers = {
+    rand, pick, shuffle, gcd, lcm, band, fmt, ord, pl, C2, binom, fact, numQ, strQ, numOptions, svgGrid,
+    NAMES, DAYS, DAYS_EN, MONTHS_EN, MONTH_DAYS, NUM_WORD, rng: () => RNG(),
+  };
+  const api = { TOPICS, GENS, helpers, addGen, generateFrom, generateLike, generatePlanned, generateSet, examPlan, generateExam, withSeed };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.TimoGen = api;
 })(typeof window !== 'undefined' ? window : globalThis);
